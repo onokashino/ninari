@@ -1,0 +1,171 @@
+<!-- {"title": "ninari: аниме из всех озвучек в одном окне", "description": "Приложение для просмотра аниме: все озвучки из разных источников, каталог Shikimori, плеер mpv с улучшением картинки, прогресс и уведомления о новых сериях."} -->
+    <main id="top">
+      <section class="hero">
+        <div class="hero-copy">
+          <div class="stamp" aria-hidden="true">
+            <img src="{{root}}assets/mark.svg" alt="" width="120" height="120" />
+          </div>
+          <h1>Аниме из всех озвучек в&nbsp;одном окне</h1>
+          <p class="lead">Все озвучки из разных источников, плеер с улучшением картинки и прогресс, который не теряется.</p>
+          <div class="actions">
+            <a class="button" href="https://github.com/onokashino/ninari/releases/latest" data-release-link>Скачать для Linux</a>
+            <a class="button ghost" href="https://github.com/onokashino/ninari">{{github}} GitHub</a>
+          </div>
+          <div class="install">
+            <code data-install-cmd>curl -L https://github.com/onokashino/ninari/releases/latest/download/ninari-0.1.0-linux-x86_64.tar.gz | tar xz &amp;&amp; ./ninari-*/install.sh</code>
+            <button type="button" class="copy" data-copy-from="[data-install-cmd]">Копировать</button>
+          </div>
+          <p class="fine" data-release-meta>Linux · бесплатно · открытый код. Windows и macOS в работе.</p>
+        </div>
+        <figure class="window hero-shot" data-tilt>
+          <img src="{{root}}assets/shots/home.webp" alt="Главная ninari: продолжить серию, что смотрю сейчас и что выходит сегодня" width="1440" height="900" />
+        </figure>
+      </section>
+
+      <section class="story" id="features" aria-label="Возможности">
+        <div class="story-steps">
+          <article class="story-step" id="dubs" data-glow="#6fc3c9">
+            <p class="kicker">Тайтл</p>
+            <h2>Одна серия, все озвучки</h2>
+            <p>Каждый источник сразу, лучшее качество сверху. У «Фрирен» таких 39.</p>
+            <ul class="chips" data-reveal aria-label="Озвучки «Провожающей в последний путь Фрирен» в ninari">
+              <li><span>Комната Диди</span><b class="q uhd">2160p</b><i>28 из 28</i></li>
+              <li><span>Amazing Dubbing</span><b class="q hd">1080p</b><i>28 из 28</i></li>
+              <li><span>AniBaza</span><b class="q hd">1080p</b><i>28 из 28</i></li>
+              <li><span>AniDUB</span><b class="q hd">1080p</b><i>28 из 28</i></li>
+              <li><span>AniLibria</span><b class="q hd">1080p</b><i>28 из 28</i></li>
+              <li class="more"><span>и ещё <b data-count="34">34</b> <span data-plural="озвучка,озвучки,озвучек">озвучки</span></span></li>
+            </ul>
+            <figure class="window story-inline"><img src="{{root}}assets/shots/title.webp" alt="Страница тайтла: сезоны и серии" width="1440" height="900" loading="lazy" /></figure>
+          </article>
+
+          <article class="story-step" id="player" data-glow="#b9a3ff">
+            <p class="kicker">Плеер</p>
+            <h2>Картинка лучше, чем в источнике</h2>
+            <ul class="points">
+              <li><b>Anime4K и ArtCNN.</b> Включаются сами на маленьком видео, зажатая C показывает оригинал.</li>
+              <li><b>Звук.</b> Ровная громкость, чёткие голоса, ночной режим.</li>
+              <li><b>Пропуски.</b> Опенинги, эндинги и филлеры.</li>
+            </ul>
+            <div class="story-inline"><div class="panel" aria-hidden="true">
+          <p class="panel-title">Улучшение</p>
+          <div class="row"><span>Метод</span><span class="seg"><i class="on">Anime4K</i><i>ArtCNN</i></span></div>
+          <div class="row"><span>Режим</span><span class="seg"><i class="on">Авто</i><i>A</i><i>B</i><i>C</i></span></div>
+          <div class="row"><span>Нагрузка</span><span class="seg"><i>Fast</i><i class="on">HQ</i><i>Ultra</i></span></div>
+          <p class="panel-title">Звук и серии</p>
+          <div class="row"><span>Ровная громкость</span><span class="toggle on"></span></div>
+          <div class="row"><span>Чёткие голоса</span><span class="toggle on"></span></div>
+          <div class="row"><span>Ночной режим</span><span class="toggle"></span></div>
+          <div class="row"><span>Пропускать опенинги</span><span class="toggle on"></span></div>
+          <div class="row"><span>Пропускать филлеры</span><span class="toggle"></span></div>
+        </div></div>
+          </article>
+
+          <article class="story-step" data-glow="#e7c07a">
+            <p class="kicker">Каталог</p>
+            <h2>Есть что посмотреть</h2>
+            <ul class="points">
+              <li><b>Каталог Shikimori.</b> Жанры, студии, сезоны и подборки.</li>
+              <li><b>Поиск по кадру.</b> Вставь скриншот, получи тайтл и серию.</li>
+              <li><b>Ctrl+K.</b> Всё с клавиатуры.</li>
+            </ul>
+            <figure class="window story-inline"><img src="{{root}}assets/shots/catalog.webp" alt="Каталог ninari" width="1440" height="900" loading="lazy" /></figure>
+          </article>
+
+          <article class="story-step" data-glow="#ee7a8a">
+            <p class="kicker">Расписание</p>
+            <h2>Ничего не пропустишь</h2>
+            <ul class="points">
+              <li><b>Уведомления.</b> О новых сериях, даже когда окно в трее.</li>
+              <li><b>Shikimori.</b> Список обновляется там же.</li>
+              <li><b>Свои устройства.</b> Прогресс синхронизируется по домашней сети.</li>
+            </ul>
+            <figure class="window story-inline"><img src="{{root}}assets/shots/schedule.webp" alt="Расписание ninari" width="1440" height="900" loading="lazy" /></figure>
+          </article>
+        </div>
+
+        <div class="story-pin" aria-hidden="true">
+          <div class="story-stage">
+          <div class="story-glow"></div>
+          <div class="story-dots"><i></i><i></i><i></i><i></i></div>
+          <div class="window story-frame">
+            <img src="{{root}}assets/shots/title.webp" alt="" width="1440" height="900" />
+            <div class="story-player"><img src="{{root}}assets/shots/title.webp" alt="" width="1440" height="900" loading="lazy" /><div class="panel" aria-hidden="true">
+          <p class="panel-title">Улучшение</p>
+          <div class="row"><span>Метод</span><span class="seg"><i class="on">Anime4K</i><i>ArtCNN</i></span></div>
+          <div class="row"><span>Режим</span><span class="seg"><i class="on">Авто</i><i>A</i><i>B</i><i>C</i></span></div>
+          <div class="row"><span>Нагрузка</span><span class="seg"><i>Fast</i><i class="on">HQ</i><i>Ultra</i></span></div>
+          <p class="panel-title">Звук и серии</p>
+          <div class="row"><span>Ровная громкость</span><span class="toggle on"></span></div>
+          <div class="row"><span>Чёткие голоса</span><span class="toggle on"></span></div>
+          <div class="row"><span>Ночной режим</span><span class="toggle"></span></div>
+          <div class="row"><span>Пропускать опенинги</span><span class="toggle on"></span></div>
+          <div class="row"><span>Пропускать филлеры</span><span class="toggle"></span></div>
+        </div></div>
+            <img src="{{root}}assets/shots/catalog.webp" alt="" width="1440" height="900" loading="lazy" />
+            <img src="{{root}}assets/shots/schedule.webp" alt="" width="1440" height="900" loading="lazy" />
+          </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="how" id="how" aria-labelledby="how-h">
+        <h2 id="how-h">Как начать</h2>
+        <ol class="steps" data-reveal>
+          <li>
+            <h3>Установи</h3>
+            <p>Команда выше или архив с GitHub. Без пароля, mpv уже внутри.</p>
+          </li>
+          <li>
+            <h3>Подключи источники</h3>
+            <p>Первый запуск предложит плагины и перенос списка с Shikimori.</p>
+          </li>
+          <li>
+            <h3>Смотри</h3>
+            <p>Найди тайтл и выбери озвучку.</p>
+          </li>
+        </ol>
+      </section>
+
+      <section class="sources" id="sources" aria-labelledby="sources-h">
+        <h2 id="sources-h">Откуда берутся серии</h2>
+        <p>
+          ninari не хранит видео. Серии находят плагины, которые ты подключаешь сам: AniLibria, AnimeGO, AnimeLib,
+          Anixart, Rutube, Shikicinema и YummyAnime.
+        </p>
+        <p><a class="button ghost" href="{{here}}plugins.html">Каталог плагинов</a></p>
+      </section>
+
+      <section class="faq" id="faq" aria-labelledby="faq-h">
+        <h2 id="faq-h">Вопросы</h2>
+        <details>
+          <summary>Нужен ли аккаунт?</summary>
+          <p>Нет, всё хранится на компьютере. Shikimori нужен, только чтобы список обновлялся и там.</p>
+        </details>
+        <details>
+          <summary>На каких системах работает?</summary>
+          <p>Linux: Arch, openSUSE Tumbleweed и другие системы со свежими библиотеками. Скоро Flatpak для любого дистрибутива и AUR, потом Windows и macOS.</p>
+        </details>
+        <details>
+          <summary>Какая нужна видеокарта?</summary>
+          <p>Любая. Для HQ, Ultra и ArtCNN лучше дискретная, уровень меняется прямо в плеере.</p>
+        </details>
+        <details>
+          <summary>Нет нужной озвучки?</summary>
+          <p>Её нет в подключённых источниках. Если источник нашёл не тот тайтл, поправь через «Не тот тайтл?».</p>
+        </details>
+        <details>
+          <summary>Это бесплатно?</summary>
+          <p>Да, без рекламы и подписок. Код открыт на GitHub.</p>
+        </details>
+      </section>
+
+      <section class="end">
+        <img src="{{root}}assets/mark.svg" alt="" width="64" height="64" />
+        <h2>Попробуй на своём списке</h2>
+        <div class="actions">
+          <a class="button" href="https://github.com/onokashino/ninari/releases/latest" data-release-link>Скачать для Linux</a>
+          <a class="button ghost" href="https://github.com/onokashino/ninari">{{github}} GitHub</a>
+        </div>
+      </section>
+    </main>

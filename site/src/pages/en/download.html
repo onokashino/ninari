@@ -1,0 +1,48 @@
+<!-- {"title": "Download ninari", "description": "Download ninari for Linux: an archive with everything inside, installed with one command. Flatpak, AUR, Windows and macOS are coming."} -->
+    <main id="top">
+      <section class="page-head centered">
+        <div class="stamp" aria-hidden="true"><img src="{{root}}assets/mark.svg" alt="" width="96" height="96" /></div>
+        <h1>Download ninari</h1>
+        <p class="lead">One command and it's in your app menu. mpv and everything else is inside.</p>
+        <div class="actions">
+          <a class="button" href="https://github.com/onokashino/ninari/releases/latest" data-release-link>Download for Linux</a>
+          <a class="button ghost" href="https://github.com/onokashino/ninari/releases">{{github}} All versions</a>
+        </div>
+        <div class="install">
+          <code data-install-cmd>curl -L https://github.com/onokashino/ninari/releases/latest/download/ninari-0.1.0-linux-x86_64.tar.gz | tar xz &amp;&amp; ./ninari-*/install.sh</code>
+          <button type="button" class="copy" data-copy-from="[data-install-cmd]">Copy</button>
+        </div>
+        <p class="fine" data-release-meta>Linux · free · open source</p>
+      </section>
+
+      <section class="platforms" aria-label="Platforms">
+        <ul class="platform-grid" data-reveal>
+          <li class="platform ready"><b>Linux</b><span>An archive for Arch, openSUSE Tumbleweed and other distributions with current libraries</span><i>Available</i></li>
+          <li class="platform"><b>Flatpak</b><span>For any distribution, through Flathub</span><i>Soon</i></li>
+          <li class="platform"><b>AUR</b><span>A package for Arch, updated with the system</span><i>Soon</i></li>
+          <li class="platform"><b>Windows</b><span>An installer and a portable version</span><i>In progress</i></li>
+          <li class="platform"><b>macOS</b><span>Apple Silicon and Intel</span><i>In progress</i></li>
+        </ul>
+      </section>
+
+      <section class="how" aria-labelledby="manual-h">
+        <h2 id="manual-h">By hand</h2>
+        <ol class="steps" data-reveal>
+          <li><h3>Download the archive</h3><p>The button above or the releases page on GitHub.</p></li>
+          <li><h3>Run install.sh</h3><p>Unpack it and run <code>./install.sh</code>. No password needed.</p></li>
+          <li><h3>Open it from the menu</h3><p>ninari shows up in your app menu and as the <code>ninari</code> command.</p></li>
+        </ol>
+        <p class="center fine">To update, run a newer <code>install.sh</code> over it. To remove: <code>./install.sh --remove</code>; your library stays.</p>
+      </section>
+
+      <section class="reqs" aria-labelledby="reqs-h">
+        <h2 id="reqs-h">What it needs</h2>
+        <dl class="spec-list" data-reveal>
+          <div><dt>System</dt><dd>Linux x86_64 with glibc 2.44 or newer: Arch, openSUSE Tumbleweed and the like. Flatpak will cover the rest.</dd></div>
+          <div><dt>Graphics</dt><dd>Any. HQ upscaling wants a GTX 1660 or better, Ultra and ArtCNN an RTX 3070 class card.</dd></div>
+          <div><dt>Window</dt><dd>On Wayland the video plays inside the app's window; on X11 it opens in an mpv window of its own.</dd></div>
+          <div><dt>Internet</dt><dd>For the catalogue and episodes. Your library and progress stay on your computer.</dd></div>
+        </dl>
+        <p class="center"><a class="button ghost" href="{{here}}docs/install.html">More in the docs</a></p>
+      </section>
+    </main>

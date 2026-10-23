@@ -16,3 +16,4 @@ crates/app/binaries/
 /target
 /dist
 /shot.png
+/site/dist

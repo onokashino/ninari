@@ -1,0 +1,59 @@
+<!-- {"title": "ninari plugins", "description": "Episode sources for ninari: what each plugin does and which sites it talks to. Install them all with one button, or use your own catalogue.", "current": "plugins"} -->
+    <main id="top">
+      <section class="page-head centered">
+        <h1>Episode sources</h1>
+        <p class="lead">Each plugin runs in a sandbox and only talks to the sites on its card.</p>
+        <div class="actions">
+          <a class="button" href="ninari://plugins?repo=https%3A%2F%2Fraw.githubusercontent.com%2Fonokashino%2Fninari%2Fmaster%2Fextensions%2Fdist%2Findex.json" data-install-all>Install all in ninari</a>
+          <button class="button ghost" type="button" data-copy-registry>Copy the catalogue link</button>
+        </div>
+        <p class="fine">The button opens the app and asks first. No ninari yet? <a href="{{here}}download.html">Download it</a>.</p>
+      </section>
+
+      <section class="catalog" aria-labelledby="catalog-h">
+        <h2 id="catalog-h">Catalogue <span class="count" data-plugin-count>7</span></h2>
+        <ul class="plugins" data-plugins data-reveal>
+          <li class="plugin">
+            <div class="plugin-head"><h3>AniLibria</h3><span class="ver">0.1.0</span></div>
+            <p>AniLibria's releases with their own dub, up to 1080p.</p>
+            <p class="sites">anilibria.top, api.anilibria.app, aniliberty.top</p>
+          </li>
+          <li class="plugin">
+            <div class="plugin-head"><h3>AnimeGO</h3><span class="ver">0.1.2</span></div>
+            <p>AnimeGO's catalogue: Aniboom and CVH players up to 1080p, Kodik up to 720p.</p>
+            <p class="sites">animego.me, animego.org, animego.one, animego.club</p>
+          </li>
+          <li class="plugin">
+            <div class="plugin-head"><h3>AnimeLib</h3><span class="ver">0.1.1</span></div>
+            <p>AnimeLib's catalogue, episodes through the Kodik player.</p>
+            <p class="sites">api.animelib.org, api.cdnlibs.org</p>
+          </li>
+          <li class="plugin">
+            <div class="plugin-head"><h3>Anixart</h3><span class="ver">0.1.1</span></div>
+            <p>The Anixart app's catalogue, split by dub team.</p>
+            <p class="sites">api-s.anixsekai.com, api.anixsekai.com, api.anixart.tv, api.anixart.app, api-s2.anixart.tv</p>
+          </li>
+          <li class="plugin">
+            <div class="plugin-head"><h3>Rutube</h3><span class="ver">0.1.0</span></div>
+            <p>Dub teams' own uploads on Rutube, up to 1080p.</p>
+            <p class="sites">rutube.ru</p>
+          </li>
+          <li class="plugin">
+            <div class="plugin-head"><h3>Shikicinema</h3><span class="ver">0.1.0</span></div>
+            <p>Episode links Shikimori users gathered from VK, ok.ru, Dzen and other players.</p>
+            <p class="sites">smarthard.net</p>
+          </li>
+          <li class="plugin">
+            <div class="plugin-head"><h3>YummyAnime</h3><span class="ver">0.1.2</span></div>
+            <p>YummyAnime's catalogue: Kodik up to 720p and CVH up to 4K.</p>
+            <p class="sites">api.yani.tv, ru.yummyani.me</p>
+          </li>
+        </ul>
+      </section>
+
+      <section class="own centered-block" aria-labelledby="own-h">
+        <h2 id="own-h">Your own source</h2>
+        <p>A plugin is one TypeScript file with three functions. Build it, host its <code>index.json</code> over https and share it with a link.</p>
+        <p><a class="button" href="{{here}}docs/custom-source.html">Write your own source</a></p>
+      </section>
+    </main>

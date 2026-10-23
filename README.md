@@ -12,7 +12,8 @@ framework of the Zed editor) and video plays through libmpv.
   which draws a page to a PNG without opening a window.
 - `extensions`: the source plugins (TypeScript, built with bun into `extensions/dist`, which the
   app installs from); see its README.
-- `site`: the website.
+- `site`: the website and the docs, in Russian and English: `bun site/build.ts` builds them from
+  `site/src` into `site/dist`, and `.github/workflows/site.yml` publishes them on GitHub Pages.
 
 ## Running on Linux
 
