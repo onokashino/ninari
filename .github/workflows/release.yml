@@ -58,7 +58,9 @@ jobs:
       - name: latest.json
         run: |
           version="$(sed -n 's/^version = "\(.*\)"/\1/p' crates/app/Cargo.toml | head -1)"
-          # The tag's message, when it has one, is what the app shows about the update.
+          # The tag's message, when it has one, is what the app shows about the update. The
+          # checkout keeps the tag as a bare name for the commit: fetch the tag itself.
+          git fetch --force origin "refs/tags/$GITHUB_REF_NAME:refs/tags/$GITHUB_REF_NAME" 2>/dev/null || true
           notes="$(git tag -l --format='%(contents)' "$GITHUB_REF_NAME" 2>/dev/null || true)"
           jq -n --arg version "$version" --arg notes "$notes" \
             '{version: $version, notes: $notes}' > dist/latest.json
