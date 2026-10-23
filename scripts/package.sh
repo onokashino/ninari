@@ -16,7 +16,9 @@
 # The release workflow runs this in an Arch Linux container (needs mpv and patchelf): the mpv
 # packed is the one the app is developed and tried with. An older one breaks it (mpv 0.37 took
 # loadfile's arguments in another order).
-set -euo pipefail
+set -Eeuo pipefail
+# A failed step names itself among the run's annotations on GitHub.
+trap 'echo "::error::scripts/package.sh line $LINENO: $BASH_COMMAND" >&2' ERR
 
 root="$(cd "$(dirname "$0")/.." && pwd)"
 target="${CARGO_TARGET_DIR:-$root/target}"
@@ -45,8 +47,10 @@ patchelf --force-rpath --set-rpath '$ORIGIN/lib' "$out/mpv"
 keep_system='^(ld-linux|libc\.so|libm\.so|libdl\.so|libpthread|librt\.so|libresolv|libutil|libmvec|libgcc_s|libstdc\+\+|libGL|libEGL|libOpenGL|libglapi|libgbm|libdrm|libvulkan|libva|libvdpau|libnvidia|libcuda|libOpenCL|libX|libxcb|libxkbcommon|libwayland|libdbus|libsystemd|libasound|libpulse|libpipewire|libjack|libfontconfig|libfreetype|libexpat|libz\.so|libglib|libgobject|libgio|libgmodule|libgdk_pixbuf)'
 for elf in "$out/ninari" "$out/mpv"; do
   ldd "$elf" | while read -r first arrow path _; do
+    # "libfoo.so.1 => /usr/lib/libfoo.so.1", or a path alone; the loader comes as a path on
+    # either side ("/lib64/ld-linux-x86-64.so.2 => /usr/lib64/...").
     if [ "$arrow" = "=>" ]; then
-      lib="$first"
+      lib="$(basename "$first")"
     elif [[ "$first" == /* ]]; then
       lib="$(basename "$first")" path="$first"
     else
