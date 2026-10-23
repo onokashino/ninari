@@ -14,9 +14,9 @@
 [![Сайт](https://img.shields.io/badge/%D1%81%D0%B0%D0%B9%D1%82-onokashino.github.io%2Fninari-101117)](https://onokashino.github.io/ninari/)
 
 [Сайт](https://onokashino.github.io/ninari/) ·
-[Скачать](https://onokashino.github.io/ninari/download.html) ·
-[Документация](https://onokashino.github.io/ninari/docs/index.html) ·
-[Плагины](https://onokashino.github.io/ninari/plugins.html) ·
+[Скачать](https://onokashino.github.io/ninari/download/) ·
+[Документация](https://onokashino.github.io/ninari/docs/) ·
+[Плагины](https://onokashino.github.io/ninari/plugins/) ·
 [English](README.en.md)
 
 <img src="site/assets/shots/title.webp" alt="Страница тайтла в ninari: сезоны, карточка «Дальше» и серии" />
@@ -38,11 +38,11 @@
 curl -L https://github.com/onokashino/ninari/releases/download/v0.1.0/ninari-0.1.0-linux-x86_64.tar.gz | tar xz && ./ninari-*/install.sh
 ```
 
-Flatpak для любого дистрибутива и AUR скоро, Windows и macOS в работе. Подробнее: [установка](https://onokashino.github.io/ninari/docs/install.html).
+Flatpak для любого дистрибутива и AUR скоро, Windows и macOS в работе. Подробнее: [установка](https://onokashino.github.io/ninari/docs/install/).
 
 ## Источники серий
 
-ninari не хранит и не раздаёт видео. Серии находят плагины в папке [`extensions`](extensions): каждый работает в песочнице и ходит только на свои сайты. Написать свой несложно: [свой источник](https://onokashino.github.io/ninari/docs/custom-source.html).
+ninari не хранит и не раздаёт видео. Серии находят плагины в папке [`extensions`](extensions): каждый работает в песочнице и ходит только на свои сайты. Написать свой несложно: [свой источник](https://onokashino.github.io/ninari/docs/custom-source/).
 
 ## Разработка
 
@@ -60,7 +60,7 @@ bun gpui      # собрать и запустить
 | `extensions` | Официальные плагины-источники |
 | `site` | Сайт и документация на русском и английском |
 
-Подробнее: [сборка](https://onokashino.github.io/ninari/docs/build.html), [устройство проекта](https://onokashino.github.io/ninari/docs/architecture.html), [выпуск версии](https://onokashino.github.io/ninari/docs/releasing.html).
+Подробнее: [сборка](https://onokashino.github.io/ninari/docs/build/), [устройство проекта](https://onokashino.github.io/ninari/docs/architecture/), [выпуск версии](https://onokashino.github.io/ninari/docs/releasing/).
 
 ## Лицензия
 

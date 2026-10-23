@@ -11,12 +11,12 @@ an mpv player with Anime4K and ArtCNN upscaling, and progress that never gets lo
 
 [![Release](https://img.shields.io/github/v/release/onokashino/ninari?color=b9a3ff)](https://github.com/onokashino/ninari/releases/latest)
 [![License](https://img.shields.io/github/license/onokashino/ninari?color=e2475a)](LICENSE)
-[![Site](https://img.shields.io/badge/site-onokashino.github.io%2Fninari-101117)](https://onokashino.github.io/ninari/en/index.html)
+[![Site](https://img.shields.io/badge/site-onokashino.github.io%2Fninari-101117)](https://onokashino.github.io/ninari/en/)
 
-[Site](https://onokashino.github.io/ninari/en/index.html) ·
-[Download](https://onokashino.github.io/ninari/en/download.html) ·
-[Docs](https://onokashino.github.io/ninari/en/docs/index.html) ·
-[Plugins](https://onokashino.github.io/ninari/en/plugins.html) ·
+[Site](https://onokashino.github.io/ninari/en/) ·
+[Download](https://onokashino.github.io/ninari/en/download/) ·
+[Docs](https://onokashino.github.io/ninari/en/docs/) ·
+[Plugins](https://onokashino.github.io/ninari/en/plugins/) ·
 [Русский](README.md)
 
 <img src="site/assets/shots/title.webp" alt="A title's page in ninari: seasons, the next-up card and episodes" />
@@ -40,11 +40,11 @@ Linux for now (Arch, openSUSE Tumbleweed and other systems with current librarie
 curl -L https://github.com/onokashino/ninari/releases/download/v0.1.0/ninari-0.1.0-linux-x86_64.tar.gz | tar xz && ./ninari-*/install.sh
 ```
 
-A Flatpak for any distribution and AUR are coming; Windows and macOS are in progress. More: [installing](https://onokashino.github.io/ninari/en/docs/install.html).
+A Flatpak for any distribution and AUR are coming; Windows and macOS are in progress. More: [installing](https://onokashino.github.io/ninari/en/docs/install/).
 
 ## Episode sources
 
-ninari keeps and serves no video. Episodes are found by the plugins in [`extensions`](extensions): each runs in a sandbox and only talks to its own sites. Writing one is not hard: [your own source](https://onokashino.github.io/ninari/en/docs/custom-source.html).
+ninari keeps and serves no video. Episodes are found by the plugins in [`extensions`](extensions): each runs in a sandbox and only talks to its own sites. Writing one is not hard: [your own source](https://onokashino.github.io/ninari/en/docs/custom-source/).
 
 ## Development
 
@@ -62,7 +62,7 @@ bun gpui      # build and start
 | `extensions` | The official source plugins |
 | `site` | The site and the docs in Russian and English |
 
-More: [building](https://onokashino.github.io/ninari/en/docs/build.html), [how it's built](https://onokashino.github.io/ninari/en/docs/architecture.html), [releasing](https://onokashino.github.io/ninari/en/docs/releasing.html).
+More: [building](https://onokashino.github.io/ninari/en/docs/build/), [how it's built](https://onokashino.github.io/ninari/en/docs/architecture/), [releasing](https://onokashino.github.io/ninari/en/docs/releasing/).
 
 ## License
 

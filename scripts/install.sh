@@ -49,5 +49,5 @@ StartupWMClass=ninari
 EOF
 
 command -v update-desktop-database >/dev/null && update-desktop-database "$data/applications" || true
-command -v gtk-update-icon-cache >/dev/null && gtk-update-icon-cache -q "$data/icons/hicolor" || true
+command -v gtk-update-icon-cache >/dev/null && gtk-update-icon-cache -q -t "$data/icons/hicolor" || true
 echo "ninari installed: the app menu, or \`ninari\` in a terminal"

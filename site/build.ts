@@ -5,7 +5,7 @@
 //
 // No dependencies: the docs use a small Markdown subset, rendered below.
 import { cpSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
-import { dirname, join } from "node:path";
+import { dirname, join, posix } from "node:path";
 
 const SITE = import.meta.dir;
 const SRC = join(SITE, "src");
@@ -110,7 +110,7 @@ function shell(p: Shell): string {
     <meta property="og:site_name" content="ninari" />
     <meta property="og:title" content="${p.title}" />
     <meta property="og:description" content="${p.description}" />
-    <meta property="og:url" content="${SITE_URL}${p.lang === "en" ? "en/" : ""}${p.path}" />
+    <meta property="og:url" content="${SITE_URL}${p.lang === "en" ? "en/" : ""}${urlOf(p.path)}" />
     <meta property="og:image" content="${SITE_URL}assets/${p.lang === "en" ? "og-en" : "og"}.png" />
     <meta property="og:image:width" content="1280" />
     <meta property="og:image:height" content="640" />
@@ -384,10 +384,38 @@ ${doc.html}
 
 // ---------- build ----------
 
+/** Where a page lands: "download.html" goes to "download/index.html", so its address is just "download/". */
+function outFile(path: string): string {
+  return path.endsWith("index.html") ? path : path.replace(/\.html$/, "/index.html");
+}
+
+/** A page's address without "index.html": "docs/player.html" is "docs/player/". */
+function urlOf(path: string): string {
+  return outFile(path).replace(/index\.html$/, "");
+}
+
+/** Pages and docs link each other as "x.html" from where their source sits; this points those links,
+ * and the ones to assets, at the folders the pages actually land in. */
+function prettyLinks(html: string, page: string): string {
+  const from = posix.dirname(`/${outFile(page)}`);
+  return html.replace(/\b(href|src)="([^"]*)"/g, (all, attr, link: string) => {
+    if (/^([a-z]+:|#|\/)/i.test(link)) return all;
+    const cut = link.indexOf("#");
+    const target = cut < 0 ? link : link.slice(0, cut);
+    const hash = cut < 0 ? "" : link.slice(cut);
+    let to = posix.join(posix.dirname(`/${page}`), target);
+    if (to.endsWith(".html")) to = `/${urlOf(to.slice(1))}`;
+    let rel = posix.relative(from, to) || ".";
+    if (to.endsWith("/") && !rel.endsWith("/")) rel += "/";
+    return `${attr}="${rel}${hash}"`;
+  });
+}
+
 function write(lang: Lang, path: string, html: string) {
-  const file = join(DIST, lang === "en" ? "en" : "", path);
+  const page = (lang === "en" ? "en/" : "") + path;
+  const file = join(DIST, outFile(page));
   mkdirSync(dirname(file), { recursive: true });
-  writeFileSync(file, html);
+  writeFileSync(file, prettyLinks(html, page));
 }
 
 rmSync(DIST, { recursive: true, force: true });
