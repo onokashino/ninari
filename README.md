@@ -1,56 +1,67 @@
+<div align="center">
+
+<img src="site/assets/mark.svg" width="96" height="96" alt="" />
+
 # ninari
 
-A desktop app for watching anime: the Shikimori catalogue, episodes from source plugins, and a
-player with Anime4K and ArtCNN upscaling. Written in Rust; the window is drawn with GPUI (the UI
-framework of the Zed editor) and video plays through libmpv.
+**Аниме из всех озвучек в одном окне**
 
-## Layout
+Каталог Shikimori, серии из разных источников с лучшим качеством каждой озвучки,
+плеер mpv с улучшением картинки Anime4K и ArtCNN, прогресс, который не теряется.
 
-- `crates/core`: everything but the window: the catalogue, the library, sources and their
-  plugins, the player's controller (mpv), devices on the local network, Shikimori sign-in.
-- `crates/app`: the app: its screens, the player, the tray and `ninari://` links, and `shot`,
-  which draws a page to a PNG without opening a window.
-- `extensions`: the source plugins (TypeScript, built with bun into `extensions/dist`, which the
-  app installs from); see its README.
-- `site`: the website and the docs, in Russian and English: `bun site/build.ts` builds them from
-  `site/src` into `site/dist`, and `.github/workflows/site.yml` publishes them on GitHub Pages.
+[![Релиз](https://img.shields.io/github/v/release/onokashino/ninari?label=%D1%80%D0%B5%D0%BB%D0%B8%D0%B7&color=b9a3ff)](https://github.com/onokashino/ninari/releases/latest)
+[![Лицензия](https://img.shields.io/github/license/onokashino/ninari?label=%D0%BB%D0%B8%D1%86%D0%B5%D0%BD%D0%B7%D0%B8%D1%8F&color=e2475a)](LICENSE)
+[![Сайт](https://img.shields.io/badge/%D1%81%D0%B0%D0%B9%D1%82-onokashino.github.io%2Fninari-101117)](https://onokashino.github.io/ninari/)
 
-## Running on Linux
+[Сайт](https://onokashino.github.io/ninari/) ·
+[Скачать](https://onokashino.github.io/ninari/download.html) ·
+[Документация](https://onokashino.github.io/ninari/docs/index.html) ·
+[Плагины](https://onokashino.github.io/ninari/plugins.html) ·
+[English](README.en.md)
 
-Needs Rust, mpv with libmpv, and bun for the short commands below.
+<img src="site/assets/shots/title.webp" alt="Страница тайтла в ninari: сезоны, карточка «Дальше» и серии" />
 
-    bun shaders                # once: the upscaling shaders (scripts/fetch-shaders.sh)
-    bun gpui                   # build and start; --page title:<id> opens a title
-    bun play                   # straight into the episode to continue
-    bun shot out.png catalog   # draw a page to a PNG, no window
+</div>
 
-`scripts/dev` runs everything under a memory cap with no swap.
+## Возможности
 
-Signing in to Shikimori needs the app's keys at build time: `.env.local` at the project root
-with `SHIKIMORI_CLIENT_ID=...` and `SHIKIMORI_CLIENT_SECRET=...` lines. It is git-ignored.
+- **Все озвучки сразу.** Приложение спрашивает каждый подключённый источник и сводит одну команду озвучки с разных сайтов в одну строку с лучшим качеством.
+- **Плеер mpv.** Улучшение картинки Anime4K и ArtCNN прямо во время просмотра, ровная громкость и чёткие голоса, пропуск опенингов, эндингов и филлеров.
+- **Каталог Shikimori.** Подборки, жанры, студии и сезоны, сезоны франшизы карточками, поиск по кадру.
+- **Ничего не теряется.** «Продолжить» с той же минуты, уведомления о новых сериях, синхронизация с Shikimori и между своими компьютерами в домашней сети.
 
-## Installing a release
+## Установка
 
-Download `ninari-<version>-linux-x86_64.tar.gz` from GitHub Releases, unpack it and run
-`./install.sh` inside. It copies the app into `~/.local/share/ninari`, puts `ninari` into
-`~/.local/bin` and an entry into the app menu; running a newer release's `install.sh` updates it,
-`install.sh --remove` takes it away (the library stays). The release carries its own mpv,
-libmpv and the libraries they need; only glibc, the GPU driver, X11/Wayland, the sound server and
-glib come from the system. It is built on Arch Linux and needs a distribution as current.
+Сейчас для Linux (Arch, openSUSE Tumbleweed и другие системы со свежими библиотеками). mpv и всё нужное уже внутри:
 
-## Releasing
+```bash
+curl -L https://github.com/onokashino/ninari/releases/download/v0.1.0/ninari-0.1.0-linux-x86_64.tar.gz | tar xz && ./ninari-*/install.sh
+```
 
-Raise `version` in `crates/app/Cargo.toml`, commit, then push a matching tag:
+Flatpak для любого дистрибутива и AUR скоро, Windows и macOS в работе. Подробнее: [установка](https://onokashino.github.io/ninari/docs/install.html).
 
-    git tag -a v0.2.0 -m "What is new, as the app shows it"
-    git push origin master v0.2.0
+## Источники серий
 
-`.github/workflows/release.yml` builds the archive in an Arch Linux container
-(`scripts/package.sh`) and publishes it with `latest.json`, from which installed apps learn about
-the version. The repository's secrets `SHIKIMORI_CLIENT_ID` and `SHIKIMORI_CLIENT_SECRET` go into
-the build.
+ninari не хранит и не раздаёт видео. Серии находят плагины в папке [`extensions`](extensions): каждый работает в песочнице и ходит только на свои сайты. Написать свой несложно: [свой источник](https://onokashino.github.io/ninari/docs/custom-source.html).
 
-## Windows
+## Разработка
 
-`scripts/fetch-mpv.ps1` downloads mpv and the shaders. Video inside the window works on Linux
-only for now (it draws into a Wayland subsurface); on Windows mpv plays in a window of its own.
+Rust и GPUI (фреймворк интерфейса редактора Zed), видео через libmpv.
+
+```bash
+bun shaders   # один раз: шейдеры улучшения качества
+bun gpui      # собрать и запустить
+```
+
+| Папка | Что внутри |
+| --- | --- |
+| `crates/core` | Всё, кроме окна: каталог, библиотека, источники, плеер, синхронизация |
+| `crates/app` | Приложение на GPUI |
+| `extensions` | Официальные плагины-источники |
+| `site` | Сайт и документация на русском и английском |
+
+Подробнее: [сборка](https://onokashino.github.io/ninari/docs/build.html), [устройство проекта](https://onokashino.github.io/ninari/docs/architecture.html), [выпуск версии](https://onokashino.github.io/ninari/docs/releasing.html).
+
+## Лицензия
+
+[GPL-3.0](LICENSE)

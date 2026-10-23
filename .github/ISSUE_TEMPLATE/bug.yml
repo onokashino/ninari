@@ -1,0 +1,38 @@
+name: Ошибка / Bug
+description: Что-то работает не так / Something doesn't work
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: Что случилось / What happened
+      description: И что ожидалось вместо этого / And what you expected instead
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Как повторить / Steps to reproduce
+      placeholder: |
+        1. Открыть тайтл ...
+        2. Нажать ...
+  - type: input
+    id: version
+    attributes:
+      label: Версия / Version
+      placeholder: 0.1.0
+    validations:
+      required: true
+  - type: input
+    id: system
+    attributes:
+      label: Система / System
+      placeholder: Arch Linux, KDE Wayland
+    validations:
+      required: true
+  - type: textarea
+    id: log
+    attributes:
+      label: Лог / Log
+      description: Если запускали из терминала / If started from a terminal
+      render: text

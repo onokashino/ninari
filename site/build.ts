@@ -11,6 +11,8 @@ const SITE = import.meta.dir;
 const SRC = join(SITE, "src");
 const DIST = join(SITE, "dist");
 const REPO = "https://github.com/onokashino/ninari";
+/** Where GitHub Pages serves the site: link previews need full addresses. */
+const SITE_URL = "https://onokashino.github.io/ninari/";
 
 type Lang = "ru" | "en";
 const LANGS: Lang[] = ["ru", "en"];
@@ -104,6 +106,16 @@ function shell(p: Shell): string {
     <title>${p.title}</title>
     <meta name="description" content="${p.description}" />
     <meta name="theme-color" content="#101117" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="ninari" />
+    <meta property="og:title" content="${p.title}" />
+    <meta property="og:description" content="${p.description}" />
+    <meta property="og:url" content="${SITE_URL}${p.lang === "en" ? "en/" : ""}${p.path}" />
+    <meta property="og:image" content="${SITE_URL}assets/${p.lang === "en" ? "og-en" : "og"}.png" />
+    <meta property="og:image:width" content="1280" />
+    <meta property="og:image:height" content="640" />
+    <meta property="og:locale" content="${p.lang === "en" ? "en_US" : "ru_RU"}" />
+    <meta name="twitter:card" content="summary_large_image" />
     <link rel="icon" href="${root}assets/favicon.svg" type="image/svg+xml" />
     <link rel="alternate" hreflang="${otherLang}" href="${other}" />
     <link rel="preload" href="${root}assets/fonts/manrope-cyrillic-wght-normal.woff2" as="font" type="font/woff2" crossorigin />
