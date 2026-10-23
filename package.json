@@ -1,0 +1,13 @@
+{
+  "name": "ninari",
+  "private": true,
+  "version": "0.1.0",
+  "scripts": {
+    "gpui": "bash scripts/dev gpui",
+    "play": "bash scripts/dev play",
+    "shot": "bash scripts/dev shot",
+    "shaders": "bash scripts/fetch-shaders.sh",
+    "plugins": "bun --cwd extensions run build",
+    "plugins:test": "bun --cwd extensions test"
+  }
+}

@@ -1,0 +1,11 @@
+{
+  "name": "ninari-extensions",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "build": "bun run build.ts",
+    "test": "bun test",
+    "check": "bun run check.ts"
+  }
+}

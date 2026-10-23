@@ -1,0 +1,136 @@
+{
+ "data": {
+  "animes": [
+   {
+    "id": "52991",
+    "name": "Sousou no Frieren",
+    "russian": "Провожающая в последний путь Фрирен",
+    "english": "Frieren: Beyond Journey's End",
+    "japanese": "葬送のフリーレン",
+    "synonyms": [
+     "Фрирен, провожающая в последний путь",
+     "Frieren at the Funeral"
+    ],
+    "kind": "tv",
+    "status": "released",
+    "episodes": 28,
+    "episodesAired": 27,
+    "airedOn": {
+     "year": 2023
+    },
+    "nextEpisodeAt": null,
+    "poster": {
+     "mainUrl": "https://shikimori.io/uploads/poster/animes/52991/main-d1e1c7c50f69eee9033229dcdfda5e23.webp",
+     "originalUrl": "https://shikimori.io/uploads/poster/animes/52991/dc841cc9fce2aa1e9907a4b61c5d1d92.jpeg"
+    },
+    "genres": [
+     {
+      "russian": "Сёнен"
+     },
+     {
+      "russian": "Приключения"
+     },
+     {
+      "russian": "Драма"
+     },
+     {
+      "russian": "Фэнтези"
+     },
+     {
+      "russian": "Удостоено наград"
+     }
+    ],
+    "studios": [
+     {
+      "name": "Madhouse"
+     }
+    ],
+    "description": "Одержав победу над Королём демонов, отряд героя [character=186854]Химмеля[/character] вернулся домой. Приключение, растянувшееся на десятилетие, подошло к завершению. Волшебница-эльф [character=184947]Фрирен[/character] и её отважные товарищи принесли людям мир и разошлись в разные стороны, чтобы спокойно прожить остаток жизни. Однако не всех членов отряда ждёт одинаковая участь. Для эльфов время течёт иначе, поэтому [character=184947]Фрирен[/character] вынуждена стать свидетелем того, как её спутники один за другим постепенно уходят из жизни. Девушка осознала, что годы, проведённые в отряде героя, пронеслись в один миг, как падающая звезда в бескрайнем космосе её жизни, и столкнулась с сожалениями об упущенных возможностях. Сможет ли она смириться со смертью друзей и понять, что значит жизнь для окружающих её людей? [character=184947]Фрирен[/character] начинает новое путешествие, чтобы найти ответ."
+   },
+   {
+    "id": "63816",
+    "name": "Sousou no Frieren: Ougonkyou-hen",
+    "russian": "Провожающая в последний путь Фрирен: Золотая земля",
+    "english": "Frieren: Beyond Journey's End - Golden Land Arc",
+    "japanese": "葬送のフリーレン 黄金郷編",
+    "synonyms": [
+     "Провожающая в последний путь Фрирен 3",
+     "Фрирен, провожающая в последний путь 3",
+     "Frieren at the Funeral Season 3"
+    ],
+    "kind": "tv",
+    "status": "anons",
+    "episodes": 0,
+    "episodesAired": 0,
+    "airedOn": {
+     "year": 2027
+    },
+    "nextEpisodeAt": null,
+    "poster": {
+     "mainUrl": "https://shikimori.io/uploads/poster/animes/63816/main-29f8fbeacaa86b79a63aa58a2d98ee24.webp",
+     "originalUrl": "https://shikimori.io/uploads/poster/animes/63816/00e8f6f4724f86bb565e84fabd38c0fa.jpeg"
+    },
+    "genres": [
+     {
+      "russian": "Сёнен"
+     },
+     {
+      "russian": "Приключения"
+     },
+     {
+      "russian": "Драма"
+     },
+     {
+      "russian": "Фэнтези"
+     }
+    ],
+    "studios": [
+     {
+      "name": "Madhouse"
+     }
+    ],
+    "description": "Путешествие по северным землям сводит вместе отряд [character=184947]Фрирен[/character] и [character=215250]Денкена[/character] в городе Вайзе, давно превратившемся в безмолвную золотую гробницу. Здесь, среди сияющих мощёных улиц и застывших человеческих фигур, до сих пор ощущается присутствие великого демона [character=219460]Махта[/character] — одного из семи мудрецов разрушения.\nГероям предстоит столкнуться с противником, чья сила сравнима с бедствием, а мысли — опаснее любой магии. Пока прошлое медленно раскрывает тайны отношений между людьми и демонами, воспоминания [character=215250]Денкена[/character] вновь напоминают [character=184947]Фрирен[/character] о том, как искренние чувства способны преодолеть даже горечь утраты.\nВ попытках разгадать проклятие, [character=184947]Фрирен[/character] и её спутники узнают, какую цену приходится платить тем, кто пытается изменить собственную природу. Ведь как время способно излечить далеко не все раны, так и горы золота не всегда означают счастье."
+   },
+   {
+    "id": "56885",
+    "name": "Sousou no Frieren: ●● no Mahou",
+    "russian": "Провожающая в последний путь Фрирен: Магия ●●",
+    "english": "Frieren: Beyond Journey's End Mini Anime",
+    "japanese": "葬送のフリーレン ～●●の魔法～",
+    "synonyms": [
+     "Провожающая в последний путь Фрирен: Мини-аниме",
+     "Sousou no Frieren: ●● no Mahou Part 2"
+    ],
+    "kind": "ona",
+    "status": "released",
+    "episodes": 24,
+    "episodesAired": 23,
+    "airedOn": {
+     "year": 2023
+    },
+    "nextEpisodeAt": null,
+    "poster": {
+     "mainUrl": "https://shikimori.io/uploads/poster/animes/56885/main-e692b25eaafdf286f7a2edaec1b8e35b.webp",
+     "originalUrl": "https://shikimori.io/uploads/poster/animes/56885/e91ea1cc0a97d131a60efe2243d45281.jpeg"
+    },
+    "genres": [
+     {
+      "russian": "Сёнен"
+     },
+     {
+      "russian": "Комедия"
+     },
+     {
+      "russian": "Фэнтези"
+     }
+    ],
+    "studios": [
+     {
+      "name": "TOHO animation STUDIO"
+     }
+    ],
+    "description": "Фрирен любит коллекционировать необычные заклинания, и её постоянно растущий арсенал магии содержит идеальные заклинания для многих случаев. Будь то тайное удаление алкоголя из напитков Хайтера или решение собственных проблем со сном, Фрирен обязательно скрасит дни своих компаньонов волшебством."
+   }
+  ]
+ }
+}

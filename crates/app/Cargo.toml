@@ -1,0 +1,80 @@
+[package]
+name = "ninari-app"
+version = "0.1.0"
+description = "ninari: a desktop app for watching anime, drawn with GPUI"
+authors = ["onokashino"]
+license = "GPL-3.0-only"
+edition = "2024"
+publish = false
+
+[lib]
+name = "ninari_app"
+
+[[bin]]
+name = "ninari"
+path = "src/main.rs"
+
+[[bin]]
+name = "shot"
+path = "src/bin/shot.rs"
+
+[dependencies]
+ninari-core = { path = "../core" }
+libc = "0.2"
+serde = "1"
+url = "2"
+serde_json = "1"
+unicode-segmentation = "1"
+image = { version = "0.25", default-features = false, features = ["jpeg", "png", "webp"] }
+anyhow = "1"
+tokio = { version = "1", features = ["full"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+rusqlite = { version = "0.40", features = ["bundled"] }
+raw-window-handle = "0.6"
+# Fonts and icons inside the binary.
+rust-embed = "8"
+wayland-client = "0.31"
+# A wayland-client connection over the window's own wl_display, for the video surface.
+wayland-backend = { version = "0.3", features = ["client_system"] }
+gpui = { git = "https://github.com/zed-industries/zed", rev = "cfb894a5dde8ccf3fba1659164f47fdd1c024e2e", features = ["test-support"] }
+gpui_platform = { git = "https://github.com/zed-industries/zed", rev = "cfb894a5dde8ccf3fba1659164f47fdd1c024e2e", features = ["wayland", "x11", "test-support"] }
+# Text shaping for screenshots drawn without a window.
+gpui_wgpu = { git = "https://github.com/zed-industries/zed", rev = "cfb894a5dde8ccf3fba1659164f47fdd1c024e2e" }
+notify-rust = "4"
+
+# Zed's own patches, which a git dependency does not bring along: GPUI's task and event loop
+# forks, and an EGL fix.
+[patch.crates-io]
+async-task = { git = "https://github.com/zed-industries/async-task.git", rev = "015845a19fc31752c02367567d3b8900a406f9da" }
+calloop = { git = "https://github.com/zed-industries/calloop", rev = "3759371fee14c40066d64777e2a36b6ffcc22590" }
+khronos-egl = { git = "https://github.com/zed-industries/khronos-egl", rev = "42214b36347b108fd9630ca6254b96dde59e04fe" }
+
+# A frame of an unoptimised GPUI takes 20-80 ms, so `bun gpui` stuttered: every dependency is
+# built optimised even in a debug build, the app itself lightly, so its own changes still build
+# fast. Layout, SVG, images and text get the most.
+[profile.dev]
+opt-level = 1
+
+# A release is a single program to download: no debug symbols in it.
+[profile.release]
+strip = true
+
+[profile.dev.package."*"]
+opt-level = 2
+
+[target.'cfg(target_os = "linux")'.dependencies]
+ksni = "0.3"
+
+[profile.dev.package]
+taffy = { opt-level = 3 }
+resvg = { opt-level = 3 }
+tiny-skia = { opt-level = 3 }
+image = { opt-level = 3 }
+zune-jpeg = { opt-level = 3 }
+zune-core = { opt-level = 3 }
+png = { opt-level = 3 }
+fdeflate = { opt-level = 3 }
+image-webp = { opt-level = 3 }
+cosmic-text = { opt-level = 3 }
+swash = { opt-level = 3 }

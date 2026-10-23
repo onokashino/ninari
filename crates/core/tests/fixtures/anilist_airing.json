@@ -1,0 +1,59 @@
+{
+ "data": {
+  "Page": {
+   "pageInfo": {
+    "hasNextPage": true
+   },
+   "airingSchedules": [
+    {
+     "episode": 39,
+     "airingAt": 1790722800,
+     "media": {
+      "idMal": 63151,
+      "isAdult": false
+     }
+    },
+    {
+     "episode": 13,
+     "airingAt": 1790733600,
+     "media": {
+      "idMal": 62248,
+      "isAdult": false
+     }
+    },
+    {
+     "episode": 10,
+     "airingAt": 1790733600,
+     "media": {
+      "idMal": 64461,
+      "isAdult": false
+     }
+    },
+    {
+     "episode": 3,
+     "airingAt": 1790733600,
+     "media": {
+      "idMal": 62218,
+      "isAdult": false
+     }
+    },
+    {
+     "episode": 5,
+     "airingAt": 1790722860,
+     "media": {
+      "idMal": null,
+      "isAdult": false
+     }
+    },
+    {
+     "episode": 2,
+     "airingAt": 1790722920,
+     "media": {
+      "idMal": 99999,
+      "isAdult": true
+     }
+    }
+   ]
+  }
+ }
+}

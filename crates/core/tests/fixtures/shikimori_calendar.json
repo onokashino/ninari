@@ -1,0 +1,122 @@
+[
+ {
+  "next_episode": 1,
+  "next_episode_at": "2026-09-27T09:00:00.000+03:00",
+  "duration": 180,
+  "anime": {
+   "id": 65079,
+   "name": "Koneko no Haitatsuin Uunyan (2026)",
+   "russian": "Котёнок-доставщик Унян (2026)",
+   "image": {
+    "original": "/assets/globals/missing_original.jpg",
+    "preview": "/assets/globals/missing_preview.jpg",
+    "x96": "/assets/globals/missing_x96.jpg",
+    "x48": "/assets/globals/missing_x48.jpg"
+   },
+   "url": "/animes/65079-koneko-no-haitatsuin-uunyan-2026",
+   "kind": "ona",
+   "score": "0.0",
+   "status": "ongoing",
+   "episodes": 0,
+   "episodes_aired": 0,
+   "aired_on": "2026-09-27",
+   "released_on": null
+  }
+ },
+ {
+  "next_episode": 1,
+  "next_episode_at": "2026-09-30T09:00:00.000+03:00",
+  "duration": 660,
+  "anime": {
+   "id": 62218,
+   "name": "Daxia Shou Mu Ren",
+   "russian": "Стражи гробниц",
+   "image": {
+    "original": "/assets/globals/missing_original.jpg",
+    "preview": "/assets/globals/missing_preview.jpg",
+    "x96": "/assets/globals/missing_x96.jpg",
+    "x48": "/assets/globals/missing_x48.jpg"
+   },
+   "url": "/animes/62218-daxia-shou-mu-ren",
+   "kind": "ona",
+   "score": "0.0",
+   "status": "ongoing",
+   "episodes": 59,
+   "episodes_aired": 0,
+   "aired_on": "2026-09-30",
+   "released_on": null
+  }
+ },
+ {
+  "next_episode": 13,
+  "next_episode_at": "2026-09-30T15:00:00.000+03:00",
+  "duration": 1380,
+  "anime": {
+   "id": 62513,
+   "name": "Clevatess II: Majuu no Ou to Itsuwari no Yuusha Denshou",
+   "russian": "Клеватесс 2: Король демонических зверей и легенда о ложном герое",
+   "image": {
+    "original": "/assets/globals/missing_original.jpg",
+    "preview": "/assets/globals/missing_preview.jpg",
+    "x96": "/assets/globals/missing_x96.jpg",
+    "x48": "/assets/globals/missing_x48.jpg"
+   },
+   "url": "/animes/62513-clevatess-ii-majuu-no-ou-to-itsuwari-no-yuusha-denshou",
+   "kind": "tv",
+   "score": "7.75",
+   "status": "ongoing",
+   "episodes": 13,
+   "episodes_aired": 12,
+   "aired_on": "2026-07-08",
+   "released_on": "2026-09-30"
+  }
+ },
+ {
+  "next_episode": 19,
+  "next_episode_at": "2026-09-30T16:00:00.000+03:00",
+  "duration": 1380,
+  "anime": {
+   "id": 61316,
+   "name": "Re:Zero kara Hajimeru Isekai Seikatsu 4th Season",
+   "russian": "Re:Zero. Жизнь с нуля в альтернативном мире 4",
+   "image": {
+    "original": "/assets/globals/missing_original.jpg",
+    "preview": "/assets/globals/missing_preview.jpg",
+    "x96": "/assets/globals/missing_x96.jpg",
+    "x48": "/assets/globals/missing_x48.jpg"
+   },
+   "url": "/animes/61316-re-zero-kara-hajimeru-isekai-seikatsu-4th-season",
+   "kind": "tv",
+   "score": "9.11",
+   "status": "ongoing",
+   "episodes": 19,
+   "episodes_aired": 18,
+   "aired_on": "2026-04-08",
+   "released_on": "2026-09-30"
+  }
+ },
+ {
+  "next_episode": 12,
+  "next_episode_at": null,
+  "duration": 1320,
+  "anime": {
+   "id": 63418,
+   "name": "Thunder 3",
+   "russian": "Тройной шторм",
+   "image": {
+    "original": "/assets/globals/missing_original.jpg",
+    "preview": "/assets/globals/missing_preview.jpg",
+    "x96": "/assets/globals/missing_x96.jpg",
+    "x48": "/assets/globals/missing_x48.jpg"
+   },
+   "url": "/animes/63418-thunder-3",
+   "kind": "tv",
+   "score": "5.79",
+   "status": "ongoing",
+   "episodes": 12,
+   "episodes_aired": 11,
+   "aired_on": "2026-07-09",
+   "released_on": "2026-10-01"
+  }
+ }
+]

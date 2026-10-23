@@ -1,0 +1,31 @@
+#!/usr/bin/env bash
+# The app's commands, run from the project folder as `bun gpui`, `bun play`, `bun shot`.
+# Everything runs under a memory cap with no swap, so a leak hits its own limit instead of the
+# whole machine.
+#
+#   gpui [--page title:<id>]  build and start the app, on that page
+#   play        the same, straight into the episode on the continue card
+#   shot [png] [page]  draw a page (home, search, ...) to a PNG, no window
+set -euo pipefail
+
+root="$(cd "$(dirname "$0")/.." && pwd)"
+export CARGO_TARGET_DIR="$root/target"
+
+capped() { # capped <memory> <command...>
+  local mem="$1"; shift
+  systemd-run --user --scope -q -p MemoryMax="$mem" -p MemorySwapMax=0 "$@"
+}
+
+build_gpui() {
+  (cd "$root/crates/app" && capped 8G cargo build -q)
+}
+
+case "${1:-gpui}" in
+  gpui) build_gpui && capped 4G "$CARGO_TARGET_DIR/debug/ninari" "${@:2}" ;;
+  play) build_gpui && capped 4G "$CARGO_TARGET_DIR/debug/ninari" --continue ;;
+  shot) build_gpui && capped 4G "$CARGO_TARGET_DIR/debug/shot" "${2:-$root/shot.png}" "${@:3}" ;;
+  *)
+    sed -n '6,8p' "$0" | sed 's/^# \{0,3\}//'
+    exit 1
+    ;;
+esac

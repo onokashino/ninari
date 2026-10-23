@@ -1,0 +1,179 @@
+{
+  "name": "ninari-extensions",
+  "dubs": "dubs.json",
+  "extensions": [
+    {
+      "id": "anilibria",
+      "name": "AniLibria",
+      "version": "0.1.0",
+      "apiVersion": 1,
+      "file": "anilibria.js",
+      "sha256": "f077d464ad0796775df57bf7e45157485a6964d6bce066c186177374fa3e4ed3",
+      "domains": [
+        "https://anilibria.top",
+        "https://api.anilibria.app",
+        "https://aniliberty.top"
+      ],
+      "allowedHosts": [
+        "cache.libria.fun"
+      ]
+    },
+    {
+      "id": "animego",
+      "name": "AnimeGO",
+      "version": "0.1.2",
+      "apiVersion": 1,
+      "file": "animego.js",
+      "sha256": "0ebbcd7b5cfd8bb9e6ada4a0f8ff69904c2b0cc2b71f43353f25c594a428d54c",
+      "domains": [
+        "https://animego.me",
+        "https://animego.org",
+        "https://animego.one",
+        "https://animego.club"
+      ],
+      "allowedHosts": [
+        "aniboom.one",
+        "plapi.cdnvideohub.com",
+        "*.kodikplayer.com",
+        "*.kodik.info",
+        "*.kodik.biz",
+        "*.kodik.cc",
+        "*.aniqit.com",
+        "*.solodcdn.com",
+        "*.kodik-storage.com",
+        "*.kodik-cdn.com"
+      ]
+    },
+    {
+      "id": "animelib",
+      "name": "AnimeLib",
+      "version": "0.1.1",
+      "apiVersion": 1,
+      "file": "animelib.js",
+      "sha256": "4d8fee0b0f410d39d64083b02c4d283bb0c8de857d34f1218dc2726b6ffe7477",
+      "domains": [
+        "https://api.animelib.org",
+        "https://api.cdnlibs.org"
+      ],
+      "allowedHosts": [
+        "*.kodikplayer.com",
+        "*.kodik.info",
+        "*.kodik.biz",
+        "*.kodik.cc",
+        "*.aniqit.com",
+        "*.solodcdn.com",
+        "*.kodik-storage.com",
+        "*.kodik-cdn.com"
+      ]
+    },
+    {
+      "id": "anixart",
+      "name": "Anixart",
+      "version": "0.1.1",
+      "apiVersion": 1,
+      "file": "anixart.js",
+      "sha256": "f6c133369c239ad321f752a7606f5eef2f6b8622f19310041fce495f1e85604d",
+      "domains": [
+        "https://api-s.anixsekai.com",
+        "https://api.anixsekai.com",
+        "https://api.anixart.tv",
+        "https://api.anixart.app",
+        "https://api-s2.anixart.tv"
+      ],
+      "allowedHosts": [
+        "*.libria.fun",
+        "*.kodikplayer.com",
+        "*.kodik.info",
+        "*.kodik.biz",
+        "*.kodik.cc",
+        "*.aniqit.com",
+        "*.solodcdn.com",
+        "*.kodik-storage.com",
+        "*.kodik-cdn.com",
+        "video.sibnet.ru",
+        "*.sibnet.ru"
+      ]
+    },
+    {
+      "id": "rutube",
+      "name": "Rutube",
+      "version": "0.1.0",
+      "apiVersion": 1,
+      "file": "rutube.js",
+      "sha256": "2f6416d2135253fe81dadcb7cbeb208672596bf5a3a9705a8d1894243ee14b01",
+      "domains": [
+        "https://rutube.ru"
+      ],
+      "allowedHosts": [
+        "*.rutube.ru",
+        "*.rtbcdn.ru"
+      ]
+    },
+    {
+      "id": "shikicinema",
+      "name": "Shikicinema",
+      "version": "0.1.0",
+      "apiVersion": 1,
+      "file": "shikicinema.js",
+      "sha256": "ea16f2196faa84d085b4cb7de2ee3ab4b066efd442eb925f8f1a8a6dc5e512b2",
+      "domains": [
+        "https://smarthard.net"
+      ],
+      "allowedHosts": [
+        "video.sibnet.ru",
+        "*.sibnet.ru",
+        "ok.ru",
+        "*.ok.ru",
+        "*.okcdn.ru",
+        "dzen.ru",
+        "*.dzen.ru",
+        "vk.com",
+        "*.vk.com",
+        "vk.ru",
+        "*.vk.ru",
+        "vkvideo.ru",
+        "*.vkvideo.ru",
+        "*.vkuser.net",
+        "*.userapi.com",
+        "matreshka.tv",
+        "*.matreshka.tv",
+        "*.cmtv.ru",
+        "*.kinogram.best",
+        "*.interkh.com",
+        "*.kodikplayer.com",
+        "*.kodik.info",
+        "*.kodik.biz",
+        "*.kodik.cc",
+        "*.aniqit.com",
+        "*.solodcdn.com",
+        "*.kodik-storage.com",
+        "*.kodik-cdn.com"
+      ]
+    },
+    {
+      "id": "yummy",
+      "name": "YummyAnime",
+      "version": "0.1.2",
+      "apiVersion": 1,
+      "file": "yummy.js",
+      "sha256": "021b67206fad820511faa376604408181954b372b57445f8875fb20ac1fcc21f",
+      "domains": [
+        "https://api.yani.tv",
+        "https://ru.yummyani.me/api"
+      ],
+      "allowedHosts": [
+        "*.kodikplayer.com",
+        "*.kodik.info",
+        "*.kodik.biz",
+        "*.kodik.cc",
+        "*.aniqit.com",
+        "*.solodcdn.com",
+        "*.kodik-storage.com",
+        "*.kodik-cdn.com",
+        "plapi.cdnvideohub.com",
+        "video.sibnet.ru",
+        "*.sibnet.ru"
+      ]
+    }
+  ]
+}

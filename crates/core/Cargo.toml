@@ -1,0 +1,39 @@
+[package]
+name = "ninari-core"
+version = "0.1.0"
+description = "ninari without a window: catalog, sources and plugins, library, sync, network, stream proxy"
+authors = ["onokashino"]
+license = "GPL-3.0-only"
+edition = "2021"
+
+[lib]
+name = "ninari_core"
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+anyhow = "1"
+thiserror = "2"
+tokio = { version = "1", features = ["full"] }
+reqwest = { version = "0.13", default-features = false, features = ["rustls", "json", "stream", "gzip", "brotli", "charset"] }
+rusqlite = { version = "0.40", features = ["bundled"] }
+rusqlite_migration = "2"
+axum = "0.8"
+rquickjs = { version = "0.14", features = ["futures", "parallel", "macro"] }
+scraper = "0.27"
+image = { version = "0.25", default-features = false, features = ["jpeg", "png", "webp"] }
+sha2 = "0.10"
+hex = "0.4"
+rand = "0.9"
+url = "2"
+futures-util = "0.3"
+bytes = "1"
+base64 = "0.22"
+tracing = "0.1"
+spake2 = "0.4.0"
+chacha20poly1305 = "0.10"
+hmac = "0.12"
+mdns-sd = "0.21.4"
+
+[dev-dependencies]
+tempfile = "3"

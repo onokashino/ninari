@@ -1,0 +1,79 @@
+# Builds the Linux release when a version tag (v0.2.0) is pushed and publishes it on GitHub
+# Releases with latest.json, which the app reads to offer the update. The tag must match the
+# version in crates/app/Cargo.toml. Started by hand (Actions > release > Run workflow), it only
+# builds and keeps the archive as the run's artifact.
+#
+# Secrets (Settings > Secrets and variables > Actions): SHIKIMORI_CLIENT_ID and
+# SHIKIMORI_CLIENT_SECRET, the app's keys on Shikimori. Without them the release builds, but
+# signing in to Shikimori is off in it.
+name: release
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  linux:
+    # Built on Arch: the release carries Arch's mpv, the one the app is developed and tried with
+    # (Ubuntu 24.04's 0.37 breaks it). It then runs on current distributions (glibc of today).
+    runs-on: ubuntu-24.04
+    container: archlinux:latest
+    steps:
+      - name: Packages to build with and to pack
+        run: |
+          pacman -Syu --noconfirm --needed \
+            base-devel clang git jq unzip curl patchelf rustup \
+            mpv libxkbcommon-x11 wayland vulkan-icd-loader vulkan-headers fontconfig alsa-lib
+          rustup default stable
+          # The checkout belongs to another user than the container's root.
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: The tag matches the version
+        if: startsWith(github.ref, 'refs/tags/')
+        run: |
+          version="$(sed -n 's/^version = "\(.*\)"/\1/p' crates/app/Cargo.toml | head -1)"
+          if [ "v$version" != "$GITHUB_REF_NAME" ]; then
+            echo "the tag is $GITHUB_REF_NAME, crates/app/Cargo.toml says $version" >&2
+            exit 1
+          fi
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: crates/app -> ../../target
+
+      - name: Build and pack
+        env:
+          SHIKIMORI_CLIENT_ID: ${{ secrets.SHIKIMORI_CLIENT_ID }}
+          SHIKIMORI_CLIENT_SECRET: ${{ secrets.SHIKIMORI_CLIENT_SECRET }}
+        run: bash scripts/package.sh
+
+      - name: latest.json
+        run: |
+          version="$(sed -n 's/^version = "\(.*\)"/\1/p' crates/app/Cargo.toml | head -1)"
+          # The tag's message, when it has one, is what the app shows about the update.
+          notes="$(git tag -l --format='%(contents)' "$GITHUB_REF_NAME" 2>/dev/null || true)"
+          jq -n --arg version "$version" --arg notes "$notes" \
+            '{version: $version, notes: $notes}' > dist/latest.json
+
+      - uses: actions/upload-artifact@v4
+        if: ${{ !startsWith(github.ref, 'refs/tags/') }}
+        with:
+          name: ninari-linux
+          path: dist/*.tar.gz
+
+      - uses: softprops/action-gh-release@v2
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+          name: ninari ${{ github.ref_name }}
+          files: |
+            dist/*.tar.gz
+            dist/latest.json
+          generate_release_notes: true

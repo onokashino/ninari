@@ -1,0 +1,18 @@
+# Editors
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.sw?
+
+# Secrets: the Shikimori app keys (see README)
+*.local
+
+# Downloaded player parts: scripts/fetch-shaders.sh, scripts/fetch-mpv.ps1
+crates/app/mpv-config/shaders/
+crates/app/binaries/
+
+# Cargo output, releases packed by scripts/package.sh, shot's default picture
+/target
+/dist
+/shot.png

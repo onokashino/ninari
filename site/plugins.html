@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Плагины ninari</title>
+    <meta name="description" content="Каталог источников серий для ninari: что умеет каждый плагин и на какие сайты он ходит. Установка всех одной ссылкой." />
+    <meta name="theme-color" content="#101117" />
+    <link rel="icon" href="assets/favicon.svg" type="image/svg+xml" />
+    <link rel="preload" href="assets/fonts/manrope-cyrillic-wght-normal.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="stylesheet" href="style.css" />
+    <script>
+      document.documentElement.classList.add("js");
+    </script>
+    <script src="app.js" defer></script>
+  </head>
+  <body>
+    <header class="bar">
+      <a class="brand" href="index.html" aria-label="ninari, на главную">
+        <img src="assets/mark.svg" alt="" width="32" height="32" />
+        <span>ninari</span>
+      </a>
+      <nav class="nav" aria-label="Разделы">
+        <a href="index.html#dubs">Возможности</a>
+        <a href="plugins.html" aria-current="page">Плагины</a>
+        <a href="index.html#faq">Вопросы</a>
+      </nav>
+      <a class="button small" href="download.html">Скачать</a>
+    </header>
+
+    <main>
+      <section class="page-head">
+        <h1>Источники серий</h1>
+        <p class="lead">
+          Плагин находит серии на одном сайте. Каждый работает в песочнице и ходит только на сайты, перечисленные в его
+          карточке. Каталог лежит на GitHub, и приложение обновляет плагины из него.
+        </p>
+        <div class="actions">
+          <a
+            class="button big"
+            href="ninari://plugins?repo=https%3A%2F%2Fraw.githubusercontent.com%2Fonokashino%2Fninari%2Fmaster%2Fextensions%2Fdist%2Findex.json"
+            data-install-all
+            >Установить все в ninari</a
+          >
+          <button class="button ghost" type="button" data-copy-registry>Скопировать ссылку на каталог</button>
+        </div>
+        <p class="fine" data-install-hint>
+          Кнопка откроет приложение и покажет, что будет установлено. Если ninari ещё не стоит,
+          <a href="download.html">сначала скачай его</a>. Ссылку на каталог можно вставить и вручную: «Настройки», «Плагины»,
+          «Свой репозиторий».
+        </p>
+      </section>
+
+      <section class="catalog" aria-labelledby="catalog-h">
+        <h2 id="catalog-h">Каталог <span class="count" data-plugin-count>7</span></h2>
+        <ul class="plugins" data-plugins data-reveal>
+          <li class="plugin">
+            <div class="plugin-head"><h3>AniLibria</h3><span class="ver">0.1.0</span></div>
+            <p>Релизы AniLibria с их собственной озвучкой, до 1080p.</p>
+            <p class="sites">anilibria.top, api.anilibria.app, aniliberty.top</p>
+          </li>
+          <li class="plugin">
+            <div class="plugin-head"><h3>AnimeGO</h3><span class="ver">0.1.2</span></div>
+            <p>Каталог AnimeGO: плееры Aniboom и CVH до 1080p, Kodik до 720p.</p>
+            <p class="sites">animego.me, animego.org, animego.one, animego.club</p>
+          </li>
+          <li class="plugin">
+            <div class="plugin-head"><h3>AnimeLib</h3><span class="ver">0.1.1</span></div>
+            <p>Каталог AnimeLib, серии через плеер Kodik.</p>
+            <p class="sites">api.animelib.org, api.cdnlibs.org</p>
+          </li>
+          <li class="plugin">
+            <div class="plugin-head"><h3>Anixart</h3><span class="ver">0.1.1</span></div>
+            <p>Каталог приложения Anixart с разбивкой по командам озвучки.</p>
+            <p class="sites">api-s.anixsekai.com, api.anixsekai.com, api.anixart.tv, api.anixart.app, api-s2.anixart.tv</p>
+          </li>
+          <li class="plugin">
+            <div class="plugin-head"><h3>Rutube</h3><span class="ver">0.1.0</span></div>
+            <p>Официальные загрузки команд озвучки на Rutube, до 1080p.</p>
+            <p class="sites">rutube.ru</p>
+          </li>
+          <li class="plugin">
+            <div class="plugin-head"><h3>Shikicinema</h3><span class="ver">0.1.0</span></div>
+            <p>Ссылки на серии, которые пользователи Shikimori собрали из VK, ok.ru, Дзена и других плееров.</p>
+            <p class="sites">smarthard.net</p>
+          </li>
+          <li class="plugin">
+            <div class="plugin-head"><h3>YummyAnime</h3><span class="ver">0.1.2</span></div>
+            <p>Каталог YummyAnime: Kodik до 720p и CVH до 4K.</p>
+            <p class="sites">api.yani.tv, ru.yummyani.me</p>
+          </li>
+        </ul>
+      </section>
+
+      <section class="own" aria-labelledby="own-h">
+        <h2 id="own-h">Свой каталог</h2>
+        <p>
+          Каталог это файл <code>index.json</code> со списком плагинов. Его можно выложить где угодно по https и дать
+          ссылку вида <code>ninari://plugins?repo=&lt;адрес index.json&gt;</code>. Приложение покажет плагины и сайты,
+          на которые они ходят, и установит их только после подтверждения.
+          <a href="https://github.com/onokashino/ninari/tree/master/extensions">Как устроены плагины</a>.
+        </p>
+      </section>
+    </main>
+
+    <footer class="foot">
+      <span>ninari</span>
+      <a href="download.html">Скачать</a>
+      <a href="https://github.com/onokashino/ninari">GitHub</a>
+      <a href="plugins.html">Плагины</a>
+    </footer>
+  </body>
+</html>

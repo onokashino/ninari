@@ -1,0 +1,254 @@
+{
+ "data": {
+  "animes": [
+   {
+    "origin": "manga",
+    "season": "fall_2023",
+    "rating": "pg_13",
+    "duration": 24,
+    "airedOn": {
+     "date": "2023-09-29"
+    },
+    "releasedOn": {
+     "date": "2024-03-22"
+    },
+    "japanese": "葬送のフリーレン",
+    "score": 9.25,
+    "personRoles": [
+     {
+      "rolesEn": [
+       "Producer"
+      ],
+      "person": {
+       "name": "Haruka Aoki",
+       "russian": "Харука Аоки"
+      }
+     },
+     {
+      "rolesEn": [
+       "Producer"
+      ],
+      "person": {
+       "name": "Yuuichirou Fukushi",
+       "russian": "Юитиро Фукуси"
+      }
+     },
+     {
+      "rolesEn": [
+       "Producer"
+      ],
+      "person": {
+       "name": "Yuukou Itou",
+       "russian": "Юки Ито"
+      }
+     },
+     {
+      "rolesEn": [
+       "Director",
+       "Episode Director",
+       "Storyboard",
+       "2nd Key Animation",
+       "Key Animation"
+      ],
+      "person": {
+       "name": "Keiichirou Saitou",
+       "russian": "Кэйитиро Сайто"
+      }
+     },
+     {
+      "rolesEn": [
+       "Script",
+       "Series Composition"
+      ],
+      "person": {
+       "name": "Tomohiro Suzuki",
+       "russian": "Томохиро Судзуки"
+      }
+     },
+     {
+      "rolesEn": [
+       "Theme Song Arrangement",
+       "Theme Song Composition",
+       "Music"
+      ],
+      "person": {
+       "name": "Evan Call",
+       "russian": "Эван Колл"
+      }
+     },
+     {
+      "rolesEn": [
+       "Animation Director",
+       "Character Design",
+       "Chief Animation Director"
+      ],
+      "person": {
+       "name": "Reiko Nagasawa",
+       "russian": "Рэйко Нагасава"
+      }
+     },
+     {
+      "rolesEn": [
+       "Original Creator"
+      ],
+      "person": {
+       "name": "Kanehito Yamada",
+       "russian": "Канэхито Ямада"
+      }
+     }
+    ],
+    "characterRoles": [
+     {
+      "rolesEn": [
+       "Supporting"
+      ],
+      "character": {
+       "id": "206722",
+       "name": "Aura",
+       "russian": "Аура",
+       "japanese": "アウラ",
+       "poster": {
+        "mainUrl": "https://shikimori.io/uploads/poster/characters/206722/main-8e5a2c784f8e39d1c2b3bb8ab303f7e3.webp"
+       }
+      }
+     },
+     {
+      "rolesEn": [
+       "Main"
+      ],
+      "character": {
+       "id": "188176",
+       "name": "Fern",
+       "russian": "Ферн",
+       "japanese": "フェルン",
+       "poster": {
+        "mainUrl": "https://shikimori.io/uploads/poster/characters/188176/main-1f533015e6fc2bbb0f635baf7f69a8d7.webp"
+       }
+      }
+     },
+     {
+      "rolesEn": [
+       "Main"
+      ],
+      "character": {
+       "id": "184947",
+       "name": "Frieren",
+       "russian": "Фрирен",
+       "japanese": "フリーレン",
+       "poster": {
+        "mainUrl": "https://shikimori.io/uploads/poster/characters/184947/main-5d01a5256699daf2d6b37a1790413bce.webp"
+       }
+      }
+     },
+     {
+      "rolesEn": [
+       "Main"
+      ],
+      "character": {
+       "id": "188177",
+       "name": "Stark",
+       "russian": "Штарк",
+       "japanese": "シュタルク",
+       "poster": {
+        "mainUrl": "https://shikimori.io/uploads/poster/characters/188177/main-b894006328b1aecbc9f38d786eed218d.webp"
+       }
+      }
+     },
+     {
+      "rolesEn": [
+       "Supporting"
+      ],
+      "character": {
+       "id": "298195",
+       "name": "Bakery Owner",
+       "russian": "Хозяйка пекарни",
+       "japanese": null,
+       "poster": {
+        "mainUrl": "https://shikimori.io/uploads/poster/characters/298195/main-187db3882df1c877950eab4a46586b1c.webp"
+       }
+      }
+     }
+    ],
+    "chronology": [
+     {
+      "id": "63816",
+      "russian": "Провожающая в последний путь Фрирен: Золотая земля",
+      "name": "Sousou no Frieren: Ougonkyou-hen",
+      "kind": "tv",
+      "status": "anons",
+      "episodes": 0,
+      "airedOn": {
+       "date": "2027-10-01"
+      }
+     },
+     {
+      "id": "59978",
+      "russian": "Провожающая в последний путь Фрирен 2",
+      "name": "Sousou no Frieren 2nd Season",
+      "kind": "tv",
+      "status": "released",
+      "episodes": 10,
+      "airedOn": {
+       "date": "2026-01-16"
+      }
+     },
+     {
+      "id": "60462",
+      "russian": "Пойте вместе с SUI",
+      "name": "SUI to Utaeba",
+      "kind": "cm",
+      "status": "released",
+      "episodes": 1,
+      "airedOn": {
+       "date": "2024-12-04"
+      }
+     },
+     {
+      "id": "58313",
+      "russian": "Солнечный",
+      "name": "Haru (2024)",
+      "kind": "music",
+      "status": "released",
+      "episodes": 1,
+      "airedOn": {
+       "date": "2024-03-05"
+      }
+     },
+     {
+      "id": "56885",
+      "russian": "Провожающая в последний путь Фрирен: Магия ●●",
+      "name": "Sousou no Frieren: ●● no Mahou",
+      "kind": "ona",
+      "status": "released",
+      "episodes": 24,
+      "airedOn": {
+       "date": "2023-10-11"
+      }
+     },
+     {
+      "id": "56805",
+      "russian": "Герой",
+      "name": "Yuusha",
+      "kind": "music",
+      "status": "released",
+      "episodes": 1,
+      "airedOn": {
+       "date": "2023-09-29"
+      }
+     },
+     {
+      "id": "52991",
+      "russian": "Провожающая в последний путь Фрирен",
+      "name": "Sousou no Frieren",
+      "kind": "tv",
+      "status": "released",
+      "episodes": 28,
+      "airedOn": {
+       "date": "2023-09-29"
+      }
+     }
+    ]
+   }
+  ]
+ }
+}
