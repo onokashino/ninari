@@ -902,6 +902,12 @@ impl Player {
                 skip.as_ref().and_then(|s| s.ending),
             ),
         );
+        // mpv lives on between episodes with the volume it had; a new episode starts from the
+        // saved one, which mpv is told again below, so the slider and the sound agree.
+        let prefs = self.prefs();
+        let mut playback = playback;
+        playback.volume = prefs.volume;
+        playback.muted = prefs.muted;
         let title = anime.russian.clone().unwrap_or_else(|| anime.name.clone());
         let audio_delay = self.audio_delay_for(&dub_key);
         let previous = self.current.lock().unwrap().replace(Current {
@@ -934,6 +940,12 @@ impl Player {
             .await
             .map_err(io_err)?;
         ipc.command(json!(["set_property", "audio-delay", audio_delay]))
+            .await
+            .map_err(io_err)?;
+        ipc.command(json!(["set_property", "volume", prefs.volume]))
+            .await
+            .map_err(io_err)?;
+        ipc.command(json!(["set_property", "mute", prefs.muted]))
             .await
             .map_err(io_err)?;
         ipc.command(json!(["loadfile", local, "replace", -1, options]))

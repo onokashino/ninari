@@ -185,6 +185,11 @@ pub fn poster_card_sized(
         }));
     let card = div()
         .id(key.clone())
+        .tooltip({
+            let anime = c.anime.clone();
+            move |_, cx| cx.new(|_| CardTip(anime.clone())).into()
+        })
+        .tooltip_show_delay(Duration::from_millis(650))
         .group("card")
         .cursor_pointer()
         .on_click(on_click)
@@ -339,4 +344,78 @@ pub fn today_card(
         32,
         8.,
     )
+}
+
+/// What a poster card tells on a longer look: the score, the kind, year and length, the genres
+/// and the start of the description.
+struct CardTip(ninari_core::catalog::Anime);
+
+impl Render for CardTip {
+    fn render(&mut self, _: &mut Window, _: &mut Context<Self>) -> impl IntoElement {
+        let a = &self.0;
+        let episodes = if a.episodes > 0 {
+            a.episodes
+        } else {
+            a.episodes_aired
+        };
+        let facts: Vec<String> = [
+            a.score
+                .map(|s| format!("★ {}", format!("{s:.1}").replace('.', ","))),
+            Some(kind_label(a.kind.as_deref())).filter(|k| !k.is_empty()),
+            a.year.map(|y| y.to_string()),
+            (episodes > 1).then(|| format!("{episodes} эп.")),
+        ]
+        .into_iter()
+        .flatten()
+        .collect();
+        let original = Some(a.name.clone()).filter(|n| Some(n) != a.russian.as_ref());
+        div()
+            .w(px(320.))
+            .p(px(14.))
+            .flex()
+            .flex_col()
+            .gap(px(6.))
+            .rounded(theme::R_M)
+            .bg(rgba(0x16161ef5))
+            .border_1()
+            .border_color(theme::line())
+            .shadow(vec![BoxShadow {
+                color: rgba(0x00000080).into(),
+                offset: point(px(0.), px(12.)),
+                blur_radius: px(32.),
+                spread_radius: px(0.),
+                inset: false,
+            }])
+            .text_size(px(13.))
+            .text_color(rgb(theme::TEXT_2))
+            .child(
+                div()
+                    .text_size(px(15.))
+                    .font_weight(FontWeight::EXTRA_BOLD)
+                    .text_color(rgb(theme::TEXT))
+                    .child(title(a)),
+            )
+            .children(original.map(|n| {
+                div()
+                    .text_size(px(12.))
+                    .text_color(rgb(theme::TEXT_3))
+                    .child(n)
+            }))
+            .child(
+                div()
+                    .font_weight(FontWeight::SEMIBOLD)
+                    .child(facts.join("  ·  ")),
+            )
+            .when(!a.genres.is_empty(), |d| {
+                d.child(div().text_size(px(12.)).child(a.genres.join(", ")))
+            })
+            .children(a.description.clone().map(|text| {
+                div()
+                    .mt(px(4.))
+                    .line_height(px(18.))
+                    .line_clamp(5)
+                    .text_ellipsis()
+                    .child(text)
+            }))
+    }
 }

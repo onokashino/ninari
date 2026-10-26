@@ -37,7 +37,7 @@ an mpv player with Anime4K and ArtCNN upscaling, and progress that never gets lo
 Linux (Arch, openSUSE Tumbleweed and other systems with current libraries), mpv and everything else inside:
 
 ```bash
-curl -L https://github.com/onokashino/ninari/releases/download/v0.1.4/ninari-0.1.4-linux-x86_64.tar.gz | tar xz && ./ninari-*/install.sh
+curl -L https://github.com/onokashino/ninari/releases/download/v0.1.5/ninari-0.1.5-linux-x86_64.tar.gz | tar xz && ./ninari-*/install.sh
 ```
 
 For Windows 10 and 11 the [release page](https://github.com/onokashino/ninari/releases/latest) has an installer and a portable zip. A Flatpak for any distribution and AUR are coming; macOS is in progress. More: [installing](https://onokashino.github.io/ninari/en/docs/install/).
