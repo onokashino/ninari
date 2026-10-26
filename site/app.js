@@ -416,10 +416,19 @@ async function loadRelease() {
     const rel = await res.json();
     const assets = Array.isArray(rel.assets) ? rel.assets : [];
     const linux = assets.find((a) => /linux-x86_64\.tar\.gz$/i.test(a.name));
+    const windows = assets.find((a) => /windows-x86_64-setup\.exe$/i.test(a.name));
     const version = String(rel.tag_name ?? "").replace(/^v/, "");
+    if (windows) {
+      for (const link of document.querySelectorAll("[data-release-windows]")) link.href = windows.browser_download_url;
+    }
     if (!linux) return;
     const mb = Math.round(linux.size / 1048576);
-    for (const link of links) link.href = linux.browser_download_url;
+    // On Windows the main button gives the installer.
+    const onWindows = windows && /Windows/i.test(navigator.userAgent);
+    for (const link of links) {
+      link.href = onWindows ? windows.browser_download_url : linux.browser_download_url;
+      if (onWindows && !link.hasAttribute("data-keep-label")) link.textContent = EN ? "Download for Windows" : "Скачать для Windows";
+    }
     const cmd = document.querySelector("[data-install-cmd]");
     if (cmd) cmd.textContent = `curl -L ${linux.browser_download_url} | tar xz && ./ninari-*/install.sh`;
     const meta = document.querySelector("[data-release-meta]");

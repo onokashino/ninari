@@ -1,15 +1,16 @@
-<!-- {"title": "Скачать ninari", "description": "Скачать ninari для Linux: архив со всем нужным внутри, установка одной командой. Flatpak, AUR, Windows и macOS скоро."} -->
+<!-- {"title": "Скачать ninari", "description": "Скачать ninari для Linux и Windows: всё нужное внутри, обновления приходят сами. Flatpak, AUR и macOS скоро."} -->
     <main id="top">
       <section class="page-head centered">
         <div class="stamp" aria-hidden="true"><img src="{{root}}assets/mark.svg" alt="" width="96" height="96" /></div>
         <h1>Скачать ninari</h1>
         <p class="lead">Одна команда, и приложение в меню. mpv и всё нужное уже внутри.</p>
         <div class="actions">
-          <a class="button" href="https://github.com/onokashino/ninari/releases/latest" data-release-link>Скачать для Linux</a>
+          <a class="button" href="https://github.com/onokashino/ninari/releases/latest" data-release-link data-keep-label>Скачать для Linux</a>
+          <a class="button" href="https://github.com/onokashino/ninari/releases/latest" data-release-windows>Скачать для Windows</a>
           <a class="button ghost" href="https://github.com/onokashino/ninari/releases">{{github}} Все версии</a>
         </div>
         <div class="install">
-          <code data-install-cmd>curl -L https://github.com/onokashino/ninari/releases/latest/download/ninari-0.1.0-linux-x86_64.tar.gz | tar xz &amp;&amp; ./ninari-*/install.sh</code>
+          <code data-install-cmd>curl -L https://github.com/onokashino/ninari/releases/latest/download/ninari-0.1.1-linux-x86_64.tar.gz | tar xz &amp;&amp; ./ninari-*/install.sh</code>
           <button type="button" class="copy" data-copy-from="[data-install-cmd]">Копировать</button>
         </div>
         <p class="fine" data-release-meta>Linux · бесплатно · открытый код</p>
@@ -20,7 +21,7 @@
           <li class="platform ready"><b>Linux</b><span>Архив для Arch, openSUSE Tumbleweed и других дистрибутивов со свежими библиотеками</span><i>Есть</i></li>
           <li class="platform"><b>Flatpak</b><span>Для любого дистрибутива, через Flathub</span><i>Скоро</i></li>
           <li class="platform"><b>AUR</b><span>Пакет для Arch, обновляется вместе с системой</span><i>Скоро</i></li>
-          <li class="platform"><b>Windows</b><span>Установщик и portable-версия</span><i>В работе</i></li>
+          <li class="platform ready"><b>Windows</b><span>Установщик и portable-версия, Windows 10 и 11. Видео пока в отдельном окне</span><i>Есть</i></li>
           <li class="platform"><b>macOS</b><span>Apple Silicon и Intel</span><i>В работе</i></li>
         </ul>
       </section>
@@ -32,15 +33,15 @@
           <li><h3>Запусти install.sh</h3><p>Распакуй и запусти <code>./install.sh</code>. Пароль не нужен.</p></li>
           <li><h3>Открой из меню</h3><p>ninari появится в меню приложений, а в терминале станет командой <code>ninari</code>.</p></li>
         </ol>
-        <p class="center fine">Обновление: новый <code>install.sh</code> поверх. Удаление: <code>./install.sh --remove</code>, библиотека останется.</p>
+        <p class="center fine">Обновления приложение ставит само, кнопкой «Обновить». Удаление: <code>./install.sh --remove</code>, библиотека останется.</p>
       </section>
 
       <section class="reqs" aria-labelledby="reqs-h">
         <h2 id="reqs-h">Что нужно</h2>
         <dl class="spec-list" data-reveal>
-          <div><dt>Система</dt><dd>Linux x86_64 с glibc 2.44 или новее: Arch, openSUSE Tumbleweed и похожие. Для остальных будет Flatpak.</dd></div>
+          <div><dt>Система</dt><dd>Linux x86_64 с glibc 2.44 или новее: Arch, openSUSE Tumbleweed и похожие. Для остальных будет Flatpak. Windows 10 или 11, 64 бита.</dd></div>
           <div><dt>Видеокарта</dt><dd>Любая. Улучшению HQ нужна уровня GTX 1660 и выше, Ultra и ArtCNN уровня RTX 3070.</dd></div>
-          <div><dt>Окно</dt><dd>На Wayland видео играет прямо в окне приложения, на X11 открывается отдельным окном mpv.</dd></div>
+          <div><dt>Окно</dt><dd>На Linux с Wayland видео играет прямо в окне приложения, на X11 и Windows открывается отдельным окном mpv.</dd></div>
           <div><dt>Интернет</dt><dd>Для каталога и серий. Библиотека и прогресс хранятся на компьютере.</dd></div>
         </dl>
         <p class="center"><a class="button ghost" href="{{here}}docs/install.html">Подробнее в документации</a></p>

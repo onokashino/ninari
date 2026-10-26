@@ -32,13 +32,13 @@
 
 ## Установка
 
-Сейчас для Linux (Arch, openSUSE Tumbleweed и другие системы со свежими библиотеками). mpv и всё нужное уже внутри:
+Linux (Arch, openSUSE Tumbleweed и другие системы со свежими библиотеками), mpv и всё нужное уже внутри:
 
 ```bash
-curl -L https://github.com/onokashino/ninari/releases/download/v0.1.0/ninari-0.1.0-linux-x86_64.tar.gz | tar xz && ./ninari-*/install.sh
+curl -L https://github.com/onokashino/ninari/releases/download/v0.1.1/ninari-0.1.1-linux-x86_64.tar.gz | tar xz && ./ninari-*/install.sh
 ```
 
-Flatpak для любого дистрибутива и AUR скоро, Windows и macOS в работе. Подробнее: [установка](https://onokashino.github.io/ninari/docs/install/).
+Для Windows 10 и 11 на [странице релиза](https://github.com/onokashino/ninari/releases/latest) есть установщик и portable-zip. Flatpak для любого дистрибутива и AUR скоро, macOS в работе. Подробнее: [установка](https://onokashino.github.io/ninari/docs/install/).
 
 ## Источники серий
 
