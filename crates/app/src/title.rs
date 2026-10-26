@@ -36,6 +36,7 @@ use crate::episodes::episode_tiles;
 use crate::facts::{Fact, Tone, time_left, title_facts};
 use crate::format::library_status;
 use crate::franchise::part_chips;
+use crate::lazy_grid::{self, Lazy};
 use crate::motion;
 use crate::motion::rise;
 use crate::nav::Route;
@@ -158,6 +159,8 @@ pub struct Title {
     seasons: HashMap<i64, Season>,
     /// Banners for other widths, to free from the GPU on the next frame.
     stale: Vec<Arc<RenderImage>>,
+    /// The episodes, the description, the videos and similar titles: built near the screen only.
+    blocks: [Lazy; 4],
     status_menu: Menu,
     rating_menu: Menu,
     dub_menu: Menu,
@@ -215,6 +218,7 @@ impl Title {
             core,
             seasons: HashMap::from([(id, Season::new())]),
             stale: Vec::new(),
+            blocks: Default::default(),
             status_menu: Menu::default(),
             rating_menu: Menu::default(),
             dub_menu: Menu::default(),
@@ -1536,8 +1540,12 @@ impl Render for Title {
             Phase::In { ms, .. } => Some((dir, ms)),
             _ => None,
         };
-        let episodes = self.episodes(content, accent, enter, window, cx);
-        let about = card.as_ref().map(|c| {
+        // The episodes, the description, the videos and similar titles are built only near the
+        // screen: the page laid all of it out on every frame.
+        let screen = lazy_grid::screen(window);
+        let near = self.blocks.clone().map(|b| b.near(screen));
+        let episodes = near[0].then(|| self.episodes(content, accent, enter, window, cx));
+        let about = card.as_ref().filter(|_| near[1]).map(|c| {
             let link = |key,
                         names: &[String],
                         seed: &dyn Fn(usize) -> Option<Seed>,
@@ -1585,8 +1593,12 @@ impl Render for Title {
             };
             about(c, details, content, genres, studios, accent, more, on_hero)
         });
-        let videos = details.and_then(|d| videos(&d.videos, &self.video_rows, accent, window, cx));
-        let similar = self.similar_section(details, accent, window, cx);
+        let videos = details
+            .filter(|_| near[2])
+            .and_then(|d| videos(&d.videos, &self.video_rows, accent, window, cx));
+        let similar = near[3]
+            .then(|| self.similar_section(details, accent, window, cx))
+            .flatten();
         let sticky = card
             .as_ref()
             .and_then(|c| self.sticky_bar(c, accent, window, cx));
@@ -1612,26 +1624,40 @@ impl Render for Title {
                 dir,
             ))
             .children(seasons.map(|s| rise(s, ("title-seasons", id), 1, 620, 200, 14.)))
-            .child(rise(
-                slide(episodes, phase, dir),
-                ("title-episodes", id),
-                1,
-                620,
-                240,
-                14.,
+            .child(self.blocks[0].slot(
+                near[0],
+                episodes.map(|e| {
+                    rise(
+                        slide(e, phase, dir),
+                        ("title-episodes", id),
+                        1,
+                        620,
+                        240,
+                        14.,
+                    )
+                }),
             ))
-            .children(about.map(|a| {
-                rise(
-                    div().opacity(rest).child(a),
-                    ("title-about", id),
-                    1,
-                    620,
-                    340,
-                    14.,
-                )
-            }))
-            .children(videos.map(|v| div().opacity(rest).child(v)))
-            .children(similar.map(|v| div().opacity(rest).child(v)))
+            .child(self.blocks[1].slot(
+                near[1],
+                about.map(|a| {
+                    rise(
+                        div().opacity(rest).child(a),
+                        ("title-about", id),
+                        1,
+                        620,
+                        340,
+                        14.,
+                    )
+                }),
+            ))
+            .child(self.blocks[2].slot(
+                near[2],
+                videos.map(|v| div().opacity(rest).child(v).into_any_element()),
+            ))
+            .child(self.blocks[3].slot(
+                near[3],
+                similar.map(|v| div().opacity(rest).child(v).into_any_element()),
+            ))
             .children(sticky)
     }
 }

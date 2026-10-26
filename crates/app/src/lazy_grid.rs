@@ -5,7 +5,9 @@
 use std::cell::Cell;
 use std::rc::Rc;
 
-use gpui::{AnyElement, IntoElement, ParentElement, Pixels, Styled, Window, canvas, div, px};
+use gpui::{
+    AnyElement, IntoElement, ParentElement, Pixels, Styled, Window, canvas, div, prelude::*, px,
+};
 
 /// The window's height, which decides how many rows are built.
 pub fn screen(window: &Window) -> f32 {
@@ -162,5 +164,55 @@ mod list_tests {
         assert_eq!(visible_lines(Some(0.), &heights, 900.), 0..13);
         assert_eq!(visible_lines(Some(-2000.), &heights, 900.), 16..33);
         assert_eq!(visible_lines(Some(-100_000.), &heights, 900.), 50..50);
+    }
+}
+
+/// A block of a page built only while near the screen; away from it an empty box of the height
+/// it had. A title's page laid out its description, characters, videos and similar titles on
+/// every frame, most of it out of sight.
+#[derive(Clone, Default)]
+pub struct Lazy(Rc<Cell<Option<(f32, f32)>>>);
+
+impl Lazy {
+    /// Whether the block is within a screen of the window (or not measured yet): build it.
+    pub fn near(&self, screen: f32) -> bool {
+        self.0
+            .get()
+            .is_none_or(|(top, height)| top < 2. * screen && top + height > -screen)
+    }
+
+    /// `block` (built when `near`, and maybe nothing to show); away, the room it took.
+    pub fn slot(&self, near: bool, block: Option<AnyElement>) -> AnyElement {
+        let measure = self.0.clone();
+        let built = near;
+        let kept = self.0.get().map_or(0., |(_, h)| h);
+        div()
+            .relative()
+            .flex_none()
+            .map(|d| {
+                if near {
+                    d.children(block)
+                } else {
+                    d.h(px(kept))
+                }
+            })
+            .child(
+                canvas(
+                    move |bounds, _, _| {
+                        let height = if built {
+                            f32::from(bounds.size.height)
+                        } else {
+                            kept
+                        };
+                        measure.set(Some((f32::from(bounds.top()), height)));
+                    },
+                    |_, _, _, _| {},
+                )
+                .absolute()
+                .top_0()
+                .left_0()
+                .size_full(),
+            )
+            .into_any_element()
     }
 }

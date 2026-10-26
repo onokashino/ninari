@@ -71,7 +71,8 @@ pub fn band(controls: AnyElement) -> AnyElement {
         .px(px(24.))
         .py(px(12.))
         .rounded(theme::R_L)
-        .bg(rgba((theme::INK << 8) | 0xec))
+        // GPUI cannot blur what lies under an element: dense enough not to need it.
+        .bg(rgba((theme::INK << 8) | 0xf6))
         .border_1()
         .border_color(theme::line())
         .shadow(vec![BoxShadow {

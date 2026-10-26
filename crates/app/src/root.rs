@@ -179,6 +179,13 @@ impl Root {
                 PageEvent::Play(request) => root.play(request.clone(), window, cx),
                 PageEvent::Changed => root.library_changed(cx),
                 PageEvent::Random => root.roll_random(cx),
+                PageEvent::Top => {
+                    root.glide.stop();
+                    root.autoscroll.stop();
+                    let scroll = root.history.current().scroll.clone();
+                    scroll.set_offset(gpui::point(scroll.offset().x, gpui::px(0.)));
+                    cx.notify();
+                }
             },
         )
         .detach();

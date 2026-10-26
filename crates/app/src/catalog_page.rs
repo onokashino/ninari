@@ -636,6 +636,11 @@ impl CatalogPage {
             })
             .on_click(cx.listener(|page, _, _, cx| {
                 page.filters_open = !page.filters_open;
+                // Pinned, the panel would cover the page with nothing to scroll: the page goes
+                // back up and the filters open in their place.
+                if page.filters_open && page.pin.pinned() {
+                    cx.emit(PageEvent::Top);
+                }
                 cx.notify();
             }))
             .child(icon("filter", 18.).text_color(rgb(if open {
@@ -748,7 +753,9 @@ impl CatalogPage {
                         .child(p.label)
                 }));
         let bar = self.bar(accent, window, cx);
-        let filters = self.filters_open.then(|| self.filters(accent, window, cx));
+        // Pinned, the controls stay a slim bar: the open filters are left in the page.
+        let filters =
+            (self.filters_open && !self.pin.pinned()).then(|| self.filters(accent, window, cx));
         div()
             .flex()
             .flex_col()

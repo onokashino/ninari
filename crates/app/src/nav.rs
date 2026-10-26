@@ -176,4 +176,6 @@ pub enum PageEvent {
     Changed,
     /// A random title, opened at once.
     Random,
+    /// The page wants to be scrolled back to its top.
+    Top,
 }
