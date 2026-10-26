@@ -35,7 +35,7 @@ use crate::repo_offer::{Closed as OfferClosed, RepoOffer};
 use crate::schedule_page::SchedulePage;
 use crate::search_page::{SearchEvent, SearchPage};
 use crate::settings_page::SettingsPage;
-use crate::smooth::Glide;
+use crate::smooth::{Autoscroll, Glide};
 use crate::stats_page::StatsPage;
 use crate::theme::{self, Accent};
 use crate::title::{Title, TitleEvent};
@@ -79,6 +79,7 @@ pub struct Root {
     video_window: Option<VideoWindow>,
     focus: FocusHandle,
     glide: Glide,
+    autoscroll: Autoscroll,
     /// Every picture of the window, kept decoded up to a budget.
     images: Entity<Images>,
     /// The title page drawn last: it frees its banners once another page is on screen.
@@ -142,6 +143,7 @@ impl Root {
             video_window,
             focus,
             glide: Glide::default(),
+            autoscroll: Autoscroll::default(),
             images: Images::new(cx),
             drawn_title: None,
         }
@@ -334,6 +336,7 @@ impl Root {
 
     pub fn open(&mut self, route: Route, cx: &mut Context<Self>) {
         self.glide.stop();
+        self.autoscroll.stop();
         self.focus_search = route == Route::Search;
         self.history.open(route);
         cx.notify();
@@ -630,6 +633,7 @@ impl Render for Root {
 
         let scroll = self.history.current().scroll.clone();
         self.glide.step(&scroll, window);
+        self.autoscroll.step(&scroll, window);
         let page = self.page(route, window, cx);
         let root = root
             .relative()
@@ -655,8 +659,10 @@ impl Render for Root {
                             .track_scroll(&scroll)
                             .child(page),
                     )
-                    .child(self.glide.catcher(scroll.clone())),
+                    .child(self.glide.catcher(scroll.clone()))
+                    .child(self.autoscroll.layer()),
             )
+            .children(self.autoscroll.mark())
             .children(self.palette.clone())
             .children(self.offer.clone())
             .children(self.update.clone().map(|info| update_banner(info, cx)))

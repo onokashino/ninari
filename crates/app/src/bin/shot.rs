@@ -103,6 +103,20 @@ fn step(cx: &mut HeadlessAppContext, window: AnyWindowHandle, step: &str) -> any
             send(cx, window, mouse_down(p))?;
             send(cx, window, mouse_up(p))?;
         }
+        // A middle click: starts scrolling towards the pointer, as in a browser.
+        "middle" => {
+            let p = at(args)?;
+            let p = point(p[0], p[1]);
+            send(cx, window, mouse_move(p, None))?;
+            let mut down = mouse_down(p);
+            let mut up = mouse_up(p);
+            if let (PlatformInput::MouseDown(d), PlatformInput::MouseUp(u)) = (&mut down, &mut up) {
+                d.button = MouseButton::Middle;
+                u.button = MouseButton::Middle;
+            }
+            send(cx, window, down)?;
+            send(cx, window, up)?;
+        }
         "drag" => {
             let p = at(args)?;
             let (from, to) = (point(p[0], p[1]), point(p[2], p[3]));
