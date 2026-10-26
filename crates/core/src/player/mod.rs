@@ -514,6 +514,14 @@ pub struct Player {
     host: Mutex<String>,
     sessions: AtomicU64,
     gate: PlayGate,
+    /// Streams looked up ahead for the episode on screen, by dub: the pointer resting on a dub
+    /// in the player's list starts one, so the switch finds it ready.
+    warm: Mutex<
+        std::collections::HashMap<
+            (i64, i64, String),
+            Arc<tokio::sync::OnceCell<Option<ResolvedStream>>>,
+        >,
+    >,
     jikan: Arc<Jikan>,
     aniskip: Arc<AniSkip>,
 }
@@ -537,6 +545,7 @@ impl Player {
             host: Mutex::new("main".into()),
             sessions: AtomicU64::new(0),
             gate: PlayGate::default(),
+            warm: Mutex::default(),
             jikan: deps.jikan,
             aniskip: deps.aniskip,
         })
@@ -802,10 +811,26 @@ impl Player {
                 c.prefetched.take().filter(|(n, _)| same && *n == episode)
             })
             .flatten();
-        let resolved = match prefetched {
-            Some((_, r)) => r,
+        let began = std::time::Instant::now();
+        let warm = self
+            .warm
+            .lock()
+            .unwrap()
+            .remove(&(id, episode, dub_key.clone()));
+        let warmed = match warm {
+            // Still looking it up: wait for that rather than start over.
+            Some(cell) => cell.get_or_init(|| async { None }).await.clone(),
+            None => None,
+        };
+        let resolved = match prefetched.map(|(_, r)| r).or(warmed) {
+            Some(r) => r,
             None => self.resolver.resolve(id, episode, &dub_key).await?,
         };
+        // Looked up for another episode: of no use any more.
+        self.warm
+            .lock()
+            .unwrap()
+            .retain(|(i, e, _), _| (*i, *e) == (id, episode));
         // Episodes opened from the panel, N/P or autoplay pick up where they were left.
         let start = match start {
             Some(s) => s,
@@ -814,8 +839,16 @@ impl Player {
                 crate::library::resume_position(progress.iter().find(|p| p.episode == episode))
             }
         };
-        self.start(ticket, id, episode, dub_key, resolved, start)
-            .await
+        let found = began.elapsed();
+        let result = self
+            .start(ticket, id, episode, dub_key, resolved, start)
+            .await;
+        tracing::info!(
+            "episode {episode} of {id}: stream found in {} ms, loading after {} ms",
+            found.as_millis(),
+            began.elapsed().as_millis()
+        );
+        result
     }
 
     async fn start(
@@ -827,19 +860,17 @@ impl Player {
         resolved: ResolvedStream,
         start: f64,
     ) -> Result<(), AppError> {
-        let anime = self.catalog.get(id).await?;
-        let (ipc, session) = self.ensure_running().await?;
-        let available = self
-            .resolver
-            .episodes_in_dub(id, &dub_key)
-            .await?
-            .into_iter()
-            .max()
-            .unwrap_or(episode)
-            .max(episode);
+        // None of these waits on another: together they take as long as the slowest.
+        let (anime, running, in_dub, skip) = tokio::join!(
+            self.catalog.get(id),
+            self.ensure_running(),
+            self.resolver.episodes_in_dub(id, &dub_key),
+            self.resolver.skip_for(id, episode),
+        );
+        let (anime, (ipc, session)) = (anime?, running?);
+        let available = in_dub?.into_iter().max().unwrap_or(episode).max(episode);
         let final_episode = (anime.status.as_deref() == Some("released") && anime.episodes > 0)
             .then_some(anime.episodes);
-        let skip = self.resolver.skip_for(id, episode).await;
         let ending_start = skip.as_ref().and_then(|s| s.ending).map(|(from, _)| from);
         let Some(_loading) = self.gate.commit(ticket).await else {
             return Ok(());
@@ -1233,6 +1264,36 @@ impl Player {
     }
 
     /// Switches the dub of the current episode and continues from the same moment.
+    /// Starts looking up the episode on screen in `dub_key`, for a switch that may follow.
+    pub fn warm_dub(self: &Arc<Self>, dub_key: String) {
+        let Some((id, episode)) =
+            self.with_current(|c| (c.playback.shikimori_id, c.playback.episode))
+        else {
+            return;
+        };
+        let cell = self
+            .warm
+            .lock()
+            .unwrap()
+            .entry((id, episode, dub_key.clone()))
+            .or_default()
+            .clone();
+        if cell.initialized() {
+            return;
+        }
+        let me = self.clone();
+        tokio::spawn(async move {
+            cell.get_or_init(|| async {
+                me.resolver
+                    .resolve(id, episode, &dub_key)
+                    .await
+                    .map_err(|e| tracing::info!("looking up {dub_key} ahead: {}", e.message))
+                    .ok()
+            })
+            .await;
+        });
+    }
+
     pub async fn set_dub(self: &Arc<Self>, dub_key: String) -> Result<(), AppError> {
         let Some((id, episode, position)) = self.with_current(|c| {
             (

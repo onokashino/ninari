@@ -1591,6 +1591,13 @@ impl Player {
                         })
                         .ok();
                     }),
+                    {
+                        let (player, rt) = (self.core.player.clone(), self.core.rt.clone());
+                        Rc::new(move |key, _| {
+                            let player = player.clone();
+                            rt.spawn(async move { player.warm_dub(key) });
+                        })
+                    },
                 )
                 .into_any_element()
             }

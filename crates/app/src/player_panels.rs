@@ -636,6 +636,8 @@ pub fn dubs(
     s: &PlayerState,
     accent: Hsla,
     pick: Rc<dyn Fn(String, &mut Window, &mut App)>,
+    // The pointer rests on a dub: its stream is looked up ahead of a click.
+    warm: Rc<dyn Fn(String, &mut App)>,
 ) -> Div {
     let Some(sources) = sources else {
         return hint("Загружаем озвучки");
@@ -648,6 +650,7 @@ pub fn dubs(
             let current = d.key == s.dub_key;
             let has = d.episodes.contains(&s.episode);
             let (pick, key) = (pick.clone(), d.key.clone());
+            let (warm, ahead) = (warm.clone(), d.key.clone());
             div()
                 .id(SharedString::from(format!("dub-{}", d.key)))
                 .flex()
@@ -664,6 +667,11 @@ pub fn dubs(
                     } else if has {
                         row.cursor_pointer()
                             .hover(|st| st.bg(rgba(0xffffff14)))
+                            .on_hover(move |on, _, cx| {
+                                if *on {
+                                    warm(ahead.clone(), cx);
+                                }
+                            })
                             .on_click(move |_, window, cx| pick(key.clone(), window, cx))
                     } else {
                         row.opacity(0.4)
