@@ -67,7 +67,7 @@ pub fn lazy_grid(
         .into_any_element()
 }
 
-/// The rows to build: those within half a screen above or below the window, where the grid's top was
+/// The rows to build: those on the window and one more either side, where the grid's top was
 /// at `top` (all of them before the first frame measured it).
 fn visible_rows(top: Option<f32>, rows: usize, row_h: f32, screen: f32) -> std::ops::Range<usize> {
     let Some(top) = top else {
@@ -75,8 +75,10 @@ fn visible_rows(top: Option<f32>, rows: usize, row_h: f32, screen: f32) -> std::
     };
     let step = row_h + GAP_Y;
     // Half a screen either side: a fast fling shows no empty row before the next frame.
-    let first = ((-top - screen / 2.) / step).floor().max(0.) as usize;
-    let last = ((-top + 1.5 * screen) / step).ceil().max(0.) as usize;
+    // One row either side, which a frame of scrolling never outruns: each row built beyond the
+    // screen cost as much as one on it (half a screen either side made frames 70% dearer).
+    let first = ((-top) / step).floor().max(1.) as usize - 1;
+    let last = ((-top + screen) / step).ceil().max(0.) as usize + 1;
     first.min(rows)..last.min(rows)
 }
 
@@ -88,9 +90,9 @@ mod tests {
     fn only_the_rows_near_the_screen_are_built() {
         // Rows 300 + 12 apart, a screen 1000 tall.
         assert_eq!(visible_rows(None, 50, 300., 1000.), 0..50);
-        assert_eq!(visible_rows(Some(200.), 50, 300., 1000.), 0..5);
-        // Scrolled 10 000 down: rows 32..35 on screen, plus half a screen each side.
-        assert_eq!(visible_rows(Some(-10_000.), 50, 300., 1000.), 30..37);
+        assert_eq!(visible_rows(Some(200.), 50, 300., 1000.), 0..4);
+        // Scrolled 10 000 down: rows 32..35 on screen, plus one each side.
+        assert_eq!(visible_rows(Some(-10_000.), 50, 300., 1000.), 31..37);
         assert_eq!(visible_rows(Some(-100_000.), 50, 300., 1000.), 50..50);
     }
 }

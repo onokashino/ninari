@@ -4,6 +4,7 @@
 //! the left one does not, as a fade to the page's colour shows as a dark band over its glow.
 
 use std::cell::RefCell;
+use std::ops::Range;
 use std::rc::Rc;
 use std::sync::Arc;
 use std::time::Instant;
@@ -51,6 +52,14 @@ fn scroll_to(scroll: &ScrollHandle, left: Pixels) {
 }
 
 impl Row {
+    /// Which of `count` items `width` wide, `gap` apart, lie in or next to the row's visible
+    /// part. Only those are worth building: give them to `render` through `spaced`.
+    pub fn visible(&self, count: usize, width: f32, gap: f32, window: &Window) -> Range<usize> {
+        let left = f32::from(-self.scroll.offset().x);
+        let screen = f32::from(window.viewport_size().width);
+        visible_items(left, screen, count, width + gap)
+    }
+
     /// Moves a glide on by the time since the last frame.
     fn step_glide(&self, window: &mut Window) {
         let mut drag = self.drag.borrow_mut();
@@ -201,5 +210,49 @@ impl Row {
             .when(after > 0., |row| row.child(fade(270., after).right_0()))
             .child(follow)
             .into_any_element()
+    }
+}
+
+fn visible_items(left: f32, screen: f32, count: usize, step: f32) -> Range<usize> {
+    // Two cards either side: enough for a frame of a fling, and every card built costs.
+    let first = (left / step).floor().max(2.) as usize - 2;
+    let last = ((left + screen) / step).ceil().max(0.) as usize + 2;
+    first.min(count)..last.min(count)
+}
+
+/// The built items of `shown` with empty boxes standing for the rest of the `count`, so the row
+/// keeps its whole length and scroll: a long row costs what its visible part does.
+pub fn spaced(
+    shown: Range<usize>,
+    count: usize,
+    width: f32,
+    gap: f32,
+    items: Vec<AnyElement>,
+) -> Vec<AnyElement> {
+    let space = |n: usize| {
+        (n > 0).then(|| {
+            div()
+                .flex_none()
+                .w(px(n as f32 * (width + gap) - gap))
+                .into_any_element()
+        })
+    };
+    space(shown.start)
+        .into_iter()
+        .chain(items)
+        .chain(space(count - shown.end.min(count)))
+        .collect()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::visible_items;
+
+    #[test]
+    fn a_row_builds_only_what_is_near_its_visible_part() {
+        // Items 150 + 24 apart, a window 1600 wide.
+        assert_eq!(visible_items(0., 1600., 40, 174.), 0..12);
+        assert_eq!(visible_items(3000., 1600., 40, 174.), 15..29);
+        assert_eq!(visible_items(0., 1600., 5, 174.), 0..5);
     }
 }

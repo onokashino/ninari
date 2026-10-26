@@ -119,13 +119,17 @@ pub fn poster_card_sized(
     };
     let frame = poster_frame(c, px(width), theme::R_M, cx)
         .top(px(-6. * lift))
-        .shadow(vec![BoxShadow {
-            color: accent.opacity(0.6 * lift.clamp(0., 1.)),
-            offset: point(px(0.), px(16.)),
-            blur_radius: px(32.),
-            spread_radius: px(-14.),
-            inset: false,
-        }])
+        // Only on a lifted card: a blurred shadow costs the GPU even when it is invisible, and a
+        // page has a hundred cards.
+        .when(lift > 0.01, |f| {
+            f.shadow(vec![BoxShadow {
+                color: accent.opacity(0.6 * lift.clamp(0., 1.)),
+                offset: point(px(0.), px(16.)),
+                blur_radius: px(32.),
+                spread_radius: px(-14.),
+                inset: false,
+            }])
+        })
         .children(text.badge.map(|b| {
             div()
                 .absolute()

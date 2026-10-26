@@ -14,7 +14,7 @@ use ninari_core::feeds::{self, AnimeCard, ContinueItem, LibraryItem, NewSeasonCa
 
 use crate::OnClick;
 use crate::button::{Size, Variant, button};
-use crate::cards::{CardText, poster_card, today_card};
+use crate::cards::{CardText, POSTER_W, poster_card, today_card};
 use crate::clock::{is_followed, now, today_picks, utc_offset};
 use crate::core::Core;
 use crate::data::{Load, fetch, title};
@@ -22,7 +22,7 @@ use crate::format::{plural, remaining};
 use crate::nav::Route;
 use crate::player::Request;
 use crate::posters::poster;
-use crate::scroll_row::Row;
+use crate::scroll_row::{Row, spaced};
 use crate::theme::{self, Accent};
 
 pub enum HomeEvent {
@@ -256,9 +256,15 @@ impl Render for Home {
 
         let rest = &feed.cont[feed.cont.len().min(1)..];
         if !rest.is_empty() {
+            let shown = self
+                .rows
+                .watching
+                .visible(rest.len(), POSTER_W, 24., window);
             let cards: Vec<AnyElement> = rest
                 .iter()
                 .enumerate()
+                .skip(shown.start)
+                .take(shown.len())
                 .map(|(i, it)| {
                     let note = format!(
                         "Серия {}{}",
@@ -278,10 +284,14 @@ impl Render for Home {
                         .into_any_element()
                 })
                 .collect();
-            let row = self
-                .rows
-                .watching
-                .render("watching", px(24.), CARD_ROOM, cards, window, cx);
+            let row = self.rows.watching.render(
+                "watching",
+                px(24.),
+                CARD_ROOM,
+                spaced(shown, rest.len(), POSTER_W, 24., cards),
+                window,
+                cx,
+            );
             sections.push(
                 section("Смотрю сейчас", None, accent)
                     .child(row)
@@ -325,9 +335,12 @@ impl Render for Home {
         if let Load::Ready(list) = &self.sequels
             && !list.is_empty()
         {
+            let shown = self.rows.sequels.visible(list.len(), POSTER_W, 24., window);
             let cards: Vec<AnyElement> = list
                 .iter()
                 .enumerate()
+                .skip(shown.start)
+                .take(shown.len())
                 .map(|(i, n)| {
                     let text = CardText {
                         note: Some(format!("после «{}»", n.after)),
@@ -339,10 +352,14 @@ impl Render for Home {
                         .into_any_element()
                 })
                 .collect();
-            let row = self
-                .rows
-                .sequels
-                .render("sequels", px(24.), CARD_ROOM, cards, window, cx);
+            let row = self.rows.sequels.render(
+                "sequels",
+                px(24.),
+                CARD_ROOM,
+                spaced(shown, list.len(), POSTER_W, 24., cards),
+                window,
+                cx,
+            );
             sections.push(
                 section("Продолжения досмотренного", None, accent)
                     .child(row)
@@ -363,9 +380,17 @@ impl Render for Home {
             if list.is_empty() {
                 continue;
             }
+            let row = if name == "season" {
+                &self.rows.season
+            } else {
+                &self.rows.for_you
+            };
+            let shown = row.visible(list.len(), POSTER_W, 24., window);
             let cards: Vec<AnyElement> = list
                 .iter()
                 .enumerate()
+                .skip(shown.start)
+                .take(shown.len())
                 .map(|(i, c)| {
                     let text = CardText {
                         note: None,
@@ -376,6 +401,7 @@ impl Render for Home {
                     poster_card(c, name, i, text, accent, open, window, cx).into_any_element()
                 })
                 .collect();
+            let cards = spaced(shown, list.len(), POSTER_W, 24., cards);
             let row = if name == "season" {
                 &self.rows.season
             } else {
@@ -389,9 +415,12 @@ impl Render for Home {
         if let Load::Ready(list) = &self.planned
             && !list.is_empty()
         {
+            let shown = self.rows.planned.visible(list.len(), POSTER_W, 24., window);
             let cards: Vec<AnyElement> = list
                 .iter()
                 .enumerate()
+                .skip(shown.start)
+                .take(shown.len())
                 .map(|(i, it)| {
                     let text = CardText {
                         note: None,
@@ -403,10 +432,14 @@ impl Render for Home {
                         .into_any_element()
                 })
                 .collect();
-            let row = self
-                .rows
-                .planned
-                .render("planned", px(24.), CARD_ROOM, cards, window, cx);
+            let row = self.rows.planned.render(
+                "planned",
+                px(24.),
+                CARD_ROOM,
+                spaced(shown, list.len(), POSTER_W, 24., cards),
+                window,
+                cx,
+            );
             let more = ("Вся библиотека", self.open(Route::Library, cx));
             sections.push(
                 section("В планах", Some(more), accent)

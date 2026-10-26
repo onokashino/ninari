@@ -5,7 +5,8 @@ use std::collections::HashMap;
 use std::time::{Duration, Instant};
 
 use gpui::{
-    Animation, AnimationExt, App, ElementId, Global, IntoElement, Window, div, prelude::*, px,
+    Animation, AnimationExt, AnyElement, App, ElementId, Global, IntoElement, Window, div,
+    prelude::*, px,
 };
 
 use crate::theme::{Curve, EASE};
@@ -76,13 +77,36 @@ pub fn rise(
     ms: u64,
     step: u64,
     lift: f32,
-) -> impl IntoElement {
+) -> AnyElement {
+    let id = id.into();
     let delay = index.min(14) as u64 * step;
     let total = (delay + ms) as f32;
-    div().flex_none().child(el).with_animation(
-        id,
-        Animation::new(Duration::from_millis(delay + ms))
-            .with_easing(move |t| EASE.at(((t * total - delay as f32) / ms as f32).clamp(0., 1.))),
-        move |el, t| el.opacity(t).relative().top(px(lift * (1. - t))),
-    )
+    // Once per element a session: a card scrolled back into a list built only near the screen
+    // would rise again, late by its place in the list.
+    let first = ROSE.with(|seen| {
+        *seen
+            .borrow_mut()
+            .entry(id.clone())
+            .or_insert_with(Instant::now)
+    });
+    if first.elapsed() > Duration::from_millis(delay + ms) {
+        return div().flex_none().child(el).into_any_element();
+    }
+    div()
+        .flex_none()
+        .child(el)
+        .with_animation(
+            id,
+            Animation::new(Duration::from_millis(delay + ms)).with_easing(move |t| {
+                EASE.at(((t * total - delay as f32) / ms as f32).clamp(0., 1.))
+            }),
+            move |el, t| el.opacity(t).relative().top(px(lift * (1. - t))),
+        )
+        .into_any_element()
+}
+
+thread_local! {
+    /// When each element that rises was first drawn.
+    static ROSE: std::cell::RefCell<HashMap<ElementId, Instant>> =
+        Default::default();
 }

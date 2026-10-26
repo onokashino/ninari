@@ -485,13 +485,15 @@ fn video(v: &Video, accent: Hsla, window: &mut Window, cx: &mut App) -> impl Int
                                 .bg(rgba(0x101018b3))
                                 .opacity(0.85)
                                 .group_hover("video", |s| s.opacity(1.))
-                                .shadow(vec![BoxShadow {
-                                    color: accent.opacity(0.35 * lift.clamp(0., 1.)),
-                                    offset: point(px(0.), px(0.)),
-                                    blur_radius: px(18.),
-                                    spread_radius: px(0.),
-                                    inset: false,
-                                }])
+                                .when(lift > 0.01, |d| {
+                                    d.shadow(vec![BoxShadow {
+                                        color: accent.opacity(0.35 * lift.clamp(0., 1.)),
+                                        offset: point(px(0.), px(0.)),
+                                        blur_radius: px(18.),
+                                        spread_radius: px(0.),
+                                        inset: false,
+                                    }])
+                                })
                                 .child(icon("play", 20.).text_color(white())),
                         ),
                 ),
