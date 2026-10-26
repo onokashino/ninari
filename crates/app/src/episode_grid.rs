@@ -2,11 +2,10 @@
 //! accent, watched ones tinted, fillers and recaps marked.
 
 use std::rc::Rc;
-use std::time::Duration;
 
 use gpui::{
-    AnchoredPositionMode, Animation, AnimationExt, App, BoxShadow, Div, FontWeight, Hsla, Pixels,
-    Window, anchored, deferred, div, point, prelude::*, px, rgb, rgba,
+    AnchoredPositionMode, App, BoxShadow, Div, FontWeight, Hsla, Pixels, Window, anchored,
+    deferred, div, point, prelude::*, px, rgb, rgba,
 };
 use ninari_core::catalog::jikan::EpisodeMark;
 
@@ -256,25 +255,16 @@ fn tile(
                 ),
         ))
     });
+    // The tile to continue glows in the accent. It used to breathe, but an endless animation
+    // redraws the whole title page many times a second while nothing else moves.
     let el = if t.state == TileState::Current {
-        // The tile to continue breathes: a glow in the accent swells and fades.
-        el.with_animation(
-            ("breathe", n as u64),
-            // A slow glow needs few frames; the window is not redrawn at full rate for it.
-            Animation::new(Duration::from_millis(2600))
-                .repeat()
-                .with_max_fps(30.),
-            move |el, t| {
-                let swell = (t * std::f32::consts::PI).sin();
-                el.shadow(vec![BoxShadow {
-                    color: accent.opacity(0.45 * swell),
-                    offset: point(px(0.), px(0.)),
-                    blur_radius: px(18.),
-                    spread_radius: px(0.),
-                    inset: false,
-                }])
-            },
-        )
+        el.shadow(vec![BoxShadow {
+            color: accent.opacity(0.35),
+            offset: point(px(0.), px(0.)),
+            blur_radius: px(18.),
+            spread_radius: px(0.),
+            inset: false,
+        }])
         .into_any_element()
     } else {
         el.into_any_element()
