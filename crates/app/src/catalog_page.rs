@@ -27,6 +27,7 @@ use crate::core::Core;
 use crate::data::{Load, fetch, title};
 use crate::episode_grid::chip;
 use crate::format::{kind_label, plural};
+use crate::lazy_grid::{self, GridTop, lazy_grid, row_height};
 use crate::library_page::{content_width, grid_columns};
 use crate::modal::modal;
 use crate::nav::{PageEvent, Route};
@@ -100,6 +101,7 @@ struct Pick {
 
 pub struct CatalogPage {
     core: Arc<Core>,
+    grid_top: GridTop,
     filter: BrowseFilter,
     studio_name: Option<String>,
     /// The season on now, for the collection and the season chip.
@@ -128,6 +130,7 @@ impl CatalogPage {
     pub fn new(core: Arc<Core>, cx: &mut Context<Self>) -> Self {
         let page = Self {
             core,
+            grid_top: GridTop::default(),
             filter: BrowseFilter::default(),
             studio_name: None,
             season: season_at(now()),
@@ -783,25 +786,24 @@ impl CatalogPage {
                 .child("Ничего не нашлось. Убери часть фильтров или исключённых жанров.")
                 .into_any_element(),
             Load::Ready(list) => {
-                let cards: Vec<AnyElement> = list
-                    .iter()
-                    .enumerate()
-                    .map(|(i, card)| {
-                        let id = card.anime.id;
-                        let open = Box::new(cx.listener(move |_, _, _, cx| {
+                let (columns, _) = grid_columns(content_width(window));
+                let screen = lazy_grid::screen(window);
+                let top = self.grid_top.clone();
+                let cards = lazy_grid(&top, list.len(), columns, row_height(card_w), screen, |i| {
+                    let card = &list[i];
+                    let id = card.anime.id;
+                    let open =
+                        Box::new(cx.listener(move |_, _, _, cx| {
                             cx.emit(PageEvent::Open(Route::Title(id)))
                         }));
-                        let text = CardText {
-                            note: None,
-                            fraction: None,
-                            badge: None,
-                        };
-                        poster_card_sized(
-                            card, "catalog", i, text, card_w, accent, open, window, cx,
-                        )
+                    let text = CardText {
+                        note: None,
+                        fraction: None,
+                        badge: None,
+                    };
+                    poster_card_sized(card, "catalog", i, text, card_w, accent, open, window, cx)
                         .into_any_element()
-                    })
-                    .collect();
+                });
                 // Stands at the end of the list and asks for more once it is near the screen.
                 let sentinel =
                     (self.more && !self.loading && self.more_error.is_none()).then(|| {
@@ -855,7 +857,7 @@ impl CatalogPage {
                     .flex()
                     .flex_col()
                     .gap(px(32.))
-                    .child(grid().children(cards))
+                    .child(cards)
                     .children(sentinel)
                     .children(tail)
                     .into_any_element()

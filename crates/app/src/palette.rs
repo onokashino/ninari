@@ -398,6 +398,7 @@ mod tests {
                 genres: vec![],
                 studios: vec![],
                 studio_ids: vec![],
+                score: None,
                 description: None,
             },
             poster_path: None,

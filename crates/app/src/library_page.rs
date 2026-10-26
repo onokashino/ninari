@@ -16,6 +16,7 @@ use crate::core::Core;
 use crate::data::{Load, fetch};
 use crate::episode_grid::chip;
 use crate::format::library_status;
+use crate::lazy_grid::{self, GridTop, lazy_grid, row_height};
 use crate::library::{SORTS, Sort, matches, query_variants, sort};
 use crate::nav::Route;
 use crate::popover::Menu;
@@ -31,6 +32,7 @@ const TABS: [&str; 5] = ["watching", "planned", "completed", "on_hold", "dropped
 
 pub struct LibraryPage {
     core: Arc<Core>,
+    grid_top: GridTop,
     status: &'static str,
     sort: Sort,
     sort_menu: Menu,
@@ -55,6 +57,7 @@ impl LibraryPage {
         .detach();
         let mut page = Self {
             core,
+            grid_top: GridTop::default(),
             status: "watching",
             sort: Sort::Recent,
             sort_menu: Menu::default(),
@@ -252,10 +255,11 @@ impl Render for LibraryPage {
                         .child(format!("В этом списке нет «{query}»."))
                         .into_any_element()
                 } else {
-                    let cards: Vec<AnyElement> = shown
-                        .iter()
-                        .enumerate()
-                        .map(|(i, item)| {
+                    let (columns, _) = grid_columns(width);
+                    let screen = lazy_grid::screen(window);
+                    let top = self.grid_top.clone();
+                    lazy_grid(&top, shown.len(), columns, row_height(card_w), screen, |i| {
+                            let item = shown[i];
                             let a = &item.card.anime;
                             let total = if a.episodes > 0 { a.episodes } else { a.episodes_aired };
                             let text = CardText {
@@ -271,14 +275,6 @@ impl Render for LibraryPage {
                             poster_card_sized(&item.card, "library", i, text, card_w, accent, open, window, cx)
                                 .into_any_element()
                         })
-                        .collect();
-                    div()
-                        .flex()
-                        .flex_wrap()
-                        .gap_x(px(24.))
-                        .gap_y(px(32.))
-                        .children(cards)
-                        .into_any_element()
                 }
             }
         };

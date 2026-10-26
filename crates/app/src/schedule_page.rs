@@ -340,7 +340,6 @@ impl Render for SchedulePage {
             .flex()
             .flex_col()
             .gap(px(32.))
-            .max_w(px(1400.))
             .px(px(48.))
             .pt(px(50.))
             .pb(px(72.))

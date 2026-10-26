@@ -8,6 +8,7 @@ pub mod audio;
 mod gate;
 pub mod ipc;
 mod quality;
+mod quiet;
 pub mod session;
 pub mod thumbs;
 pub mod upscale;
@@ -1121,8 +1122,9 @@ impl Player {
         let tmp = dir.join(format!("{i:05}.out"));
         std::fs::write(&part, &buf)?;
         let _ = std::fs::remove_dir_all(&tmp);
-        let output = mpv_process(&self.app.mpv_program())
-            .args([
+        let output = quiet::run(
+            &self.app.mpv_program(),
+            vec![
                 "--no-config".to_string(),
                 "--terminal=no".into(),
                 "--no-audio".into(),
@@ -1134,11 +1136,10 @@ impl Player {
                 "--frames=1".into(),
                 "--vf=scale=320:-2".into(),
                 part.to_string_lossy().into_owned(),
-            ])
-            .stdin(std::process::Stdio::null())
-            .output()
-            .await
-            .map_err(|e| AppError::new("Player", e.to_string()));
+            ],
+        )
+        .await
+        .map_err(|e| AppError::new("Player", e.to_string()));
         let produced = tmp.join("00000001.jpg");
         let result = match output {
             Ok(_) if produced.exists() => std::fs::rename(&produced, &out)

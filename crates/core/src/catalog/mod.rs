@@ -26,7 +26,7 @@ pub const SHIKIMORI_DOMAINS: [&str; 2] = ["https://shikimori.io", "https://shiki
 /// The fields of a title every query asks for, as `parse_animes` reads them.
 macro_rules! anime_fields {
     () => {
-        "id name russian english japanese synonyms kind status episodes episodesAired
+        "id name russian english japanese synonyms kind status score episodes episodesAired
     airedOn { year } nextEpisodeAt poster { mainUrl originalUrl }
     genres { russian } studios { id name } description"
     };
@@ -100,6 +100,9 @@ pub struct Anime {
     pub episodes: i64,
     pub episodes_aired: i64,
     pub year: Option<i64>,
+    /// Shikimori's average score out of ten, when anyone rated it.
+    #[serde(default)]
+    pub score: Option<f64>,
     pub next_episode_at: Option<String>,
     pub poster_url: Option<String>,
     pub genres: Vec<String>,
@@ -165,6 +168,7 @@ struct RawAnime {
     synonyms: Vec<String>,
     kind: Option<String>,
     status: Option<String>,
+    score: Option<f64>,
     #[serde(default)]
     episodes: i64,
     #[serde(default)]
@@ -261,6 +265,7 @@ pub fn parse_animes(json: &str) -> Result<Vec<Anime>, AppError> {
                 episodes: r.episodes,
                 episodes_aired: r.episodes_aired,
                 year: r.aired_on.and_then(|y| y.year),
+                score: r.score.filter(|s| *s > 0.),
                 next_episode_at: r.next_episode_at,
                 poster_url: r.poster.and_then(|p| p.main_url.or(p.original_url)),
                 genres: r.genres.into_iter().filter_map(|g| g.russian).collect(),
