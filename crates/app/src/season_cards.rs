@@ -8,6 +8,7 @@ use ninari_core::feeds::AnimeCard;
 
 use crate::cards::poster_frame;
 use crate::franchise::PartChip;
+use crate::hover_card;
 use crate::motion;
 use crate::theme;
 
@@ -53,8 +54,22 @@ pub fn season_cards(
                     .bg(theme::glass()),
             };
             let on_part = on_part.clone();
+            // The details of the part on a longer look, as on poster cards.
+            let tip = gpui::ElementId::from(("part", id as u64));
+            if let Some(c) = &p.card {
+                hover_card::provide(&tip, c, cx);
+            }
+            let anchor = hover_card::anchor(&tip, cx);
+            let has_card = p.card.is_some();
             div()
                 .id(("part", id as u64))
+                .on_hover(move |hovered, window, cx| {
+                    if has_card {
+                        hover_card::hover(&tip, *hovered, cx);
+                        window.refresh();
+                    }
+                })
+                .children(anchor)
                 .relative()
                 .top(px(-3. * on))
                 .w(px(CARD_W))

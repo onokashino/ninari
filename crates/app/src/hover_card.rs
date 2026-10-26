@@ -127,6 +127,26 @@ pub fn place(key: &ElementId, bounds: Bounds<Pixels>, cx: &mut App) {
     }
 }
 
+/// For cards made of divs: an empty layer over the card that tells the details where it is.
+pub fn anchor(key: &ElementId, cx: &App) -> Option<AnyElement> {
+    let shown = cx.try_global::<HoverCard>()?.shown.as_ref()?;
+    if &shown.key != key {
+        return None;
+    }
+    let key = key.clone();
+    Some(
+        gpui::canvas(
+            move |bounds, _, cx| place(&key, bounds, cx),
+            |_, _, _, _| {},
+        )
+        .absolute()
+        .top_0()
+        .left_0()
+        .size_full()
+        .into_any_element(),
+    )
+}
+
 /// What happens from the details: open the title, or note that the library changed.
 pub struct Actions {
     pub open: Rc<dyn Fn(i64, &mut Window, &mut App)>,
