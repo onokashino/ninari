@@ -1,7 +1,7 @@
 //! One core for the whole app: the database, catalog, library, the sources with their plugins and
 //! the stream proxy, on a tokio runtime of their own.
 
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 
 use ninari_core::account::Account;
@@ -73,27 +73,36 @@ struct Installed(Arc<Core>);
 
 impl gpui::Global for Installed {}
 
-fn home() -> PathBuf {
-    std::env::var_os("HOME")
-        .map(PathBuf::from)
-        .unwrap_or_default()
+/// The folders the app's data and cache folders sit in: XDG's on Linux, AppData on Windows.
+fn roots() -> (PathBuf, PathBuf) {
+    let var = |name| {
+        std::env::var_os(name)
+            .map(PathBuf::from)
+            .unwrap_or_default()
+    };
+    if cfg!(windows) {
+        (var("APPDATA"), var("LOCALAPPDATA"))
+    } else {
+        let home = var("HOME");
+        (home.join(".local/share"), home.join(".cache"))
+    }
 }
 
-const DATA: &str = ".local/share/com.onokashino.ninari";
-const CACHE: &str = ".cache/com.onokashino.ninari";
+const NAME: &str = "com.onokashino.ninari";
+const OLD_NAME: &str = "com.onokashino.anitsair";
 
 /// Where the database and caches live.
 pub fn data_dir() -> PathBuf {
-    home().join(DATA)
+    roots().0.join(NAME)
 }
 
 pub fn cache_dir() -> PathBuf {
-    home().join(CACHE)
+    roots().1.join(NAME)
 }
 
 /// The app was called anitsair: its folders and database take the new name once, so the
 /// library, progress and settings carry over.
-fn move_old_name(home: &Path) {
+fn move_old_name((data, cache): (PathBuf, PathBuf)) {
     let rename = |old: PathBuf, new: PathBuf| {
         if old.exists()
             && !new.exists()
@@ -102,18 +111,12 @@ fn move_old_name(home: &Path) {
             tracing::warn!("moving {} to {}: {e}", old.display(), new.display());
         }
     };
-    rename(
-        home.join(".local/share/com.onokashino.anitsair"),
-        home.join(DATA),
-    );
-    rename(
-        home.join(".cache/com.onokashino.anitsair"),
-        home.join(CACHE),
-    );
+    rename(data.join(OLD_NAME), data.join(NAME));
+    rename(cache.join(OLD_NAME), cache.join(NAME));
     for part in ["", "-wal", "-shm"] {
         rename(
-            home.join(DATA).join(format!("anitsair.db{part}")),
-            home.join(DATA).join(format!("ninari.db{part}")),
+            data.join(NAME).join(format!("anitsair.db{part}")),
+            data.join(NAME).join(format!("ninari.db{part}")),
         );
     }
 }
@@ -121,7 +124,7 @@ fn move_old_name(home: &Path) {
 impl Core {
     /// Opens everything; `rt` must outlive the app (the proxy and requests run on it).
     pub fn open(rt: &tokio::runtime::Runtime) -> anyhow::Result<Arc<Self>> {
-        move_old_name(&home());
+        move_old_name(roots());
         let db: Db = Arc::new(Mutex::new(db::open(&data_dir().join("ninari.db"))?));
         let http = HttpClient::new(USER_AGENT);
         let catalog = Arc::new(Catalog::new(
@@ -264,24 +267,25 @@ mod tests {
     #[test]
     fn the_old_names_data_moves_once() {
         let home = std::env::temp_dir().join(format!("ninari-home-{}", std::process::id()));
-        let old = home.join(".local/share/com.onokashino.anitsair");
+        let roots = (home.join("data"), home.join("cache"));
+        let old = roots.0.join(OLD_NAME);
         std::fs::create_dir_all(&old).unwrap();
         std::fs::write(old.join("anitsair.db"), "library").unwrap();
         std::fs::write(old.join("anitsair.db-wal"), "log").unwrap();
-        std::fs::create_dir_all(home.join(".cache/com.onokashino.anitsair/posters")).unwrap();
+        std::fs::create_dir_all(roots.1.join(OLD_NAME).join("posters")).unwrap();
 
-        move_old_name(&home);
-        let data = home.join(DATA);
+        move_old_name(roots.clone());
+        let data = roots.0.join(NAME);
         assert_eq!(
             std::fs::read_to_string(data.join("ninari.db")).unwrap(),
             "library"
         );
         assert!(data.join("ninari.db-wal").exists() && !old.exists());
-        assert!(home.join(CACHE).join("posters").is_dir());
+        assert!(roots.1.join(NAME).join("posters").is_dir());
 
         // Run again, and with an old folder back: what is there now stays.
         std::fs::create_dir_all(&old).unwrap();
-        move_old_name(&home);
+        move_old_name(roots);
         assert_eq!(
             std::fs::read_to_string(data.join("ninari.db")).unwrap(),
             "library"

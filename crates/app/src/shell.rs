@@ -70,6 +70,7 @@ fn icon_file() -> Option<PathBuf> {
     Some(path)
 }
 
+#[cfg(unix)]
 fn socket_path() -> PathBuf {
     std::env::var_os("XDG_RUNTIME_DIR")
         .map(PathBuf::from)
@@ -87,10 +88,33 @@ pub fn hand_over(link: Option<&str>) -> bool {
         .is_ok()
 }
 
-#[cfg(not(unix))]
-pub fn hand_over(_link: Option<&str>) -> bool {
-    // No single instance on Windows yet; a named pipe goes with the Windows build.
-    false
+/// One pipe per user: another user's ninari on the same machine is an instance of its own.
+#[cfg(windows)]
+fn pipe_name() -> String {
+    format!(
+        r"\\.\pipe\ninari-{}",
+        std::env::var("USERNAME").unwrap_or_default()
+    )
+}
+
+#[cfg(windows)]
+pub fn hand_over(link: Option<&str>) -> bool {
+    use std::io::Write;
+    std::fs::OpenOptions::new()
+        .write(true)
+        .open(pipe_name())
+        .and_then(|mut p| writeln!(p, "{}", link.unwrap_or("show")))
+        .is_ok()
+}
+
+/// What a later launch asked for.
+fn message(line: &str) -> AppMsg {
+    let line = line.trim();
+    if line.starts_with(&format!("{SCHEME}://")) {
+        AppMsg::Link(line.to_string())
+    } else {
+        AppMsg::Show
+    }
 }
 
 /// Listens for later launches: each one sends a line, a link or "show".
@@ -110,23 +134,43 @@ pub fn listen(rt: &tokio::runtime::Handle, tx: UnboundedSender<AppMsg>) {
         };
         while let Ok((stream, _)) = listener.accept().await {
             let mut lines = tokio::io::BufReader::new(stream).lines();
-            if let Ok(Some(line)) = lines.next_line().await {
-                let line = line.trim().to_string();
-                let msg = if line.starts_with(&format!("{SCHEME}://")) {
-                    AppMsg::Link(line)
-                } else {
-                    AppMsg::Show
-                };
-                if tx.send(msg).is_err() {
-                    break;
-                }
+            if let Ok(Some(line)) = lines.next_line().await
+                && tx.send(message(&line)).is_err()
+            {
+                break;
             }
         }
     });
 }
 
-#[cfg(not(unix))]
-pub fn listen(_rt: &tokio::runtime::Handle, _tx: UnboundedSender<AppMsg>) {}
+#[cfg(windows)]
+pub fn listen(rt: &tokio::runtime::Handle, tx: UnboundedSender<AppMsg>) {
+    use tokio::io::AsyncBufReadExt;
+    use tokio::net::windows::named_pipe::ServerOptions;
+    let name = pipe_name();
+    rt.spawn(async move {
+        let mut server = match ServerOptions::new().first_pipe_instance(true).create(&name) {
+            Ok(s) => s,
+            Err(e) => {
+                tracing::warn!("single instance pipe: {e}");
+                return;
+            }
+        };
+        // Each launch takes the pipe it connected to; the next one waits on a fresh one.
+        while server.connect().await.is_ok() {
+            let Ok(next) = ServerOptions::new().create(&name) else {
+                break;
+            };
+            let client = std::mem::replace(&mut server, next);
+            let mut lines = tokio::io::BufReader::new(client).lines();
+            if let Ok(Some(line)) = lines.next_line().await
+                && tx.send(message(&line)).is_err()
+            {
+                break;
+            }
+        }
+    });
+}
 
 /// The tray icon: a click brings the window back, its menu opens or quits the app.
 #[cfg(target_os = "linux")]
@@ -248,7 +292,38 @@ pub fn register_scheme() {
     });
 }
 
-#[cfg(not(target_os = "linux"))]
+/// The same on Windows: the scheme under the user's own classes, so no admin rights are asked.
+#[cfg(windows)]
+pub fn register_scheme() {
+    use std::os::windows::process::CommandExt;
+    let Ok(exe) = std::env::current_exe() else {
+        return;
+    };
+    let key = format!(r"HKCU\Software\Classes\{SCHEME}");
+    let open = format!("\"{}\" \"%1\"", exe.display());
+    std::thread::spawn(move || {
+        let entries: [&[&str]; 3] = [
+            &["/ve", "/d", "URL:ninari"],
+            &["/v", "URL Protocol", "/d", ""],
+            &["/ve", "/d", &open],
+        ];
+        for (sub, args) in ["", "", r"\shell\open\command"].iter().zip(entries) {
+            let done = std::process::Command::new("reg")
+                .arg("add")
+                .arg(format!("{key}{sub}"))
+                .args(args)
+                .arg("/f")
+                .creation_flags(0x0800_0000) // CREATE_NO_WINDOW
+                .status();
+            if !done.is_ok_and(|s| s.success()) {
+                tracing::warn!("cannot register {SCHEME}:// links: {done:?}");
+                return;
+            }
+        }
+    });
+}
+
+#[cfg(not(any(target_os = "linux", windows)))]
 pub fn register_scheme() {}
 
 #[cfg(test)]

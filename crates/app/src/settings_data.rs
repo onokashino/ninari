@@ -139,6 +139,7 @@ impl DataPane {
         let (y, m, d) = civil_from_days(now().div_euclid(86_400));
         let name = format!("ninari-backup-{y}-{m:02}-{d:02}.json");
         let home = std::env::var_os("HOME")
+            .or_else(|| std::env::var_os("USERPROFILE"))
             .map(PathBuf::from)
             .unwrap_or_default();
         let picked = cx.prompt_for_new_path(&home, Some(&name));

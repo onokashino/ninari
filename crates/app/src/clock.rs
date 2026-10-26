@@ -9,6 +9,7 @@ pub fn now() -> i64 {
 }
 
 /// Seconds the local time zone is ahead of UTC at `unix`.
+#[cfg(unix)]
 pub fn utc_offset(unix: i64) -> i64 {
     let t = unix as libc::time_t;
     let mut tm: libc::tm = unsafe { std::mem::zeroed() };
@@ -16,6 +17,35 @@ pub fn utc_offset(unix: i64) -> i64 {
         return 0;
     }
     tm.tm_gmtoff as i64
+}
+
+/// Windows' C library has no `tm_gmtoff`: the local date and time read as if UTC, minus `unix`.
+#[cfg(windows)]
+pub fn utc_offset(unix: i64) -> i64 {
+    unsafe extern "C" {
+        fn _localtime64_s(tm: *mut libc::tm, time: *const i64) -> i32;
+    }
+    let mut tm: libc::tm = unsafe { std::mem::zeroed() };
+    if unsafe { _localtime64_s(&mut tm, &unix) } != 0 {
+        return 0;
+    }
+    let days = days_from_civil(
+        tm.tm_year as i64 + 1900,
+        tm.tm_mon as i64 + 1,
+        tm.tm_mday as i64,
+    );
+    days * 86400 + tm.tm_hour as i64 * 3600 + tm.tm_min as i64 * 60 + tm.tm_sec as i64 - unix
+}
+
+/// Days since 1970-01-01 of a date in the proleptic Gregorian calendar (Howard Hinnant's).
+#[cfg_attr(not(windows), allow(dead_code))]
+fn days_from_civil(y: i64, m: i64, d: i64) -> i64 {
+    let y = if m <= 2 { y - 1 } else { y };
+    let era = y.div_euclid(400);
+    let yoe = y - era * 400;
+    let doy = (153 * (m + if m > 2 { -3 } else { 9 }) + 2) / 5 + d - 1;
+    let doe = yoe * 365 + yoe / 4 - yoe / 100 + doy;
+    era * 146097 + doe - 719468
 }
 
 /// "18:00" on the user's clock.
@@ -140,6 +170,14 @@ pub fn is_followed(status: Option<&str>) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn civil_dates_count_days_from_the_epoch() {
+        assert_eq!(days_from_civil(1970, 1, 1), 0);
+        assert_eq!(days_from_civil(2000, 3, 1), 11_017);
+        assert_eq!(days_from_civil(2026, 10, 23) * 86400, 1_792_713_600);
+        assert_eq!(days_from_civil(1969, 12, 31), -1);
+    }
 
     #[test]
     fn today_is_the_local_day_with_followed_titles_first() {

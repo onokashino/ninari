@@ -65,7 +65,8 @@ impl PlayerHost for GpuiHost {
     /// The mpv a release carries beside the program (scripts/package.sh); otherwise the
     /// system's, or on Windows the one scripts/fetch-mpv.ps1 downloads.
     fn mpv_program(&self) -> PathBuf {
-        if let Some(own) = beside_program("mpv").filter(|p| p.is_file()) {
+        let name = format!("mpv{}", std::env::consts::EXE_SUFFIX);
+        if let Some(own) = beside_program(&name).filter(|p| p.is_file()) {
             return own;
         }
         if cfg!(windows) {

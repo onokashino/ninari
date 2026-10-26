@@ -22,6 +22,8 @@ pub mod library;
 pub mod library_page;
 pub mod modal;
 pub mod motion;
+// Video inside the window: libmpv in a Wayland surface. Elsewhere mpv plays in a window of its own.
+#[cfg(target_os = "linux")]
 pub mod mpv;
 pub mod nav;
 pub mod next_episode;
@@ -58,6 +60,7 @@ pub mod thumbs;
 pub mod title;
 pub mod title_about;
 pub mod updates;
+#[cfg(target_os = "linux")]
 pub mod video;
 
 pub type OnClick = Box<dyn Fn(&ClickEvent, &mut Window, &mut App) + 'static>;

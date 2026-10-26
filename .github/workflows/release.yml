@@ -1,7 +1,8 @@
-# Builds the Linux release when a version tag (v0.2.0) is pushed and publishes it on GitHub
-# Releases with latest.json, which the app reads to offer the update. The tag must match the
-# version in crates/app/Cargo.toml. Started by hand (Actions > release > Run workflow), it only
-# builds and keeps the archive as the run's artifact.
+# Builds the Linux and Windows releases when a version tag (v0.2.0) is pushed and publishes them
+# on GitHub Releases with latest.json, which the app reads to offer the update. The tag must match
+# the version in crates/app/Cargo.toml. On a push to master that touches the app, or started by
+# hand (Actions > release > Run workflow), it only builds and keeps the packages as the run's
+# artifacts.
 #
 # Secrets (Settings > Secrets and variables > Actions): SHIKIMORI_CLIENT_ID and
 # SHIKIMORI_CLIENT_SECRET, the app's keys on Shikimori. Without them the release builds, but
@@ -11,10 +12,17 @@ name: release
 on:
   push:
     tags: ["v*"]
+    branches: [master]
+    paths: ["crates/**", "scripts/**", ".github/workflows/release.yml"]
   workflow_dispatch:
 
 permissions:
   contents: write
+
+# A newer push to master makes the build of the older one pointless; tags always finish.
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: ${{ !startsWith(github.ref, 'refs/tags/') }}
 
 jobs:
   linux:
@@ -79,3 +87,66 @@ jobs:
             dist/*.tar.gz
             dist/latest.json
           generate_release_notes: true
+
+  windows:
+    runs-on: windows-2025
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: The tag matches the version
+        if: startsWith(github.ref, 'refs/tags/')
+        shell: pwsh
+        run: |
+          $version = (Select-String -Path crates/app/Cargo.toml -Pattern '^version = "(.*)"').Matches[0].Groups[1].Value
+          if ("v$version" -ne $env:GITHUB_REF_NAME) {
+            throw "the tag is $env:GITHUB_REF_NAME, crates/app/Cargo.toml says $version"
+          }
+
+      - name: Rust and Inno Setup
+        shell: pwsh
+        run: |
+          rustup update stable --no-self-update
+          rustup default stable
+          if (-not (Get-Command iscc -ErrorAction SilentlyContinue) -and
+              -not (Test-Path "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe")) {
+            choco install innosetup --no-progress -y
+          }
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: crates/app -> ../../target
+
+      - name: Build and pack
+        shell: pwsh
+        env:
+          SHIKIMORI_CLIENT_ID: ${{ secrets.SHIKIMORI_CLIENT_ID }}
+          SHIKIMORI_CLIENT_SECRET: ${{ secrets.SHIKIMORI_CLIENT_SECRET }}
+        run: |
+          pwsh -File scripts/package.ps1 *>&1 | Tee-Object build.log
+          exit $LASTEXITCODE
+
+      # The end of the build's output as the run's annotation, readable without the logs.
+      - name: Why it failed
+        if: failure()
+        shell: pwsh
+        run: |
+          if (Test-Path build.log) {
+            $tail = (Get-Content build.log -Tail 60) -join '%0A'
+            Write-Output "::error title=windows build::$tail"
+          }
+
+      - uses: actions/upload-artifact@v4
+        if: ${{ !startsWith(github.ref, 'refs/tags/') }}
+        with:
+          name: ninari-windows
+          path: |
+            dist/*.zip
+            dist/*-setup.exe
+
+      - uses: softprops/action-gh-release@v2
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+          name: ninari ${{ github.ref_name }}
+          files: |
+            dist/*.zip
+            dist/*-setup.exe

@@ -19,6 +19,7 @@ use crate::history_page::HistoryPage;
 use crate::home::{Home, HomeEvent};
 use crate::images::Images;
 use crate::library_page::{LibraryPage, Open};
+#[cfg(target_os = "linux")]
 use crate::mpv::Mpv;
 use crate::nav::PageEvent;
 use crate::nav::{Back, Forward, History, Route};
@@ -39,6 +40,7 @@ use crate::stats_page::StatsPage;
 use crate::theme::{self, Accent};
 use crate::title::{Title, TitleEvent};
 use crate::updates::{RELEASES, UpdateInfo};
+#[cfg(target_os = "linux")]
 use crate::video::Video;
 
 pub struct Root {
@@ -68,6 +70,7 @@ pub struct Root {
     focus_search: bool,
     player: Option<Entity<Player>>,
     /// libmpv and the surface it draws into, once the player asked for them.
+    #[cfg(target_os = "linux")]
     video: Option<(Video, Arc<Mpv>)>,
     focus: FocusHandle,
     glide: Glide,
@@ -123,6 +126,7 @@ impl Root {
             settings: None,
             focus_search: false,
             player: None,
+            #[cfg(target_os = "linux")]
             video: None,
             focus,
             glide: Glide::default(),
@@ -392,11 +396,17 @@ impl Root {
                 let _ = reply.send(started);
             }
             // The surface goes before the core it draws.
-            HostMsg::Stop => self.video = None,
+            HostMsg::Stop => {
+                #[cfg(target_os = "linux")]
+                {
+                    self.video = None;
+                }
+            }
         }
     }
 
     /// libmpv with `options`, drawing into a surface under the window.
+    #[cfg(target_os = "linux")]
     fn start_video(
         &mut self,
         options: &[(String, String)],
@@ -417,6 +427,12 @@ impl Root {
         let video = Video::attach(&*window, &*window, mpv.clone(), w, h)?;
         self.video = Some((video, mpv));
         Ok(())
+    }
+
+    /// Never asked for: the player host only renders where it can (see `can_render`).
+    #[cfg(not(target_os = "linux"))]
+    fn start_video(&mut self, _: &[(String, String)], _: &mut Window) -> anyhow::Result<()> {
+        anyhow::bail!("video inside the window is Linux only")
     }
 
     fn page(&mut self, route: Route, window: &mut Window, cx: &mut Context<Self>) -> AnyElement {
@@ -489,6 +505,7 @@ impl Root {
 }
 
 /// The window's inside in device pixels, the size the video surface takes.
+#[cfg(target_os = "linux")]
 fn device_size(window: &Window) -> (i32, i32) {
     let size = window.viewport_size();
     let scale = window.scale_factor();
@@ -557,6 +574,7 @@ impl Render for Root {
                 MouseButton::Navigate(NavigationDirection::Forward),
                 cx.listener(|root, _, _, cx| root.forward(cx)),
             );
+        #[cfg(target_os = "linux")]
         if let Some((video, _)) = &self.video {
             let (w, h) = device_size(window);
             video.resize(w, h);
