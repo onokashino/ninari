@@ -354,11 +354,43 @@ impl Render for SchedulePage {
                             .font_weight(FontWeight::EXTRA_BOLD)
                             .child("Расписание"),
                     )
-                    .child(div().text_color(rgb(theme::TEXT_2)).child(
-                        "Время показа в Японии, пересчитанное в твой часовой пояс. Озвучка обычно выходит в течение суток или двух.",
-                    )),
+                    .child(
+                        div()
+                            .flex()
+                            .flex_wrap()
+                            .items_center()
+                            .gap(px(10.))
+                            .text_color(rgb(theme::TEXT_2))
+                            .child(
+                                div()
+                                    .px(px(10.))
+                                    .py(px(4.))
+                                    .rounded_full()
+                                    .bg(theme::glass_strong())
+                                    .text_color(rgb(theme::TEXT))
+                                    .font_weight(FontWeight::BOLD)
+                                    .text_size(px(13.))
+                                    .child(format!("Твоё время, {}", zone_label(now))),
+                            )
+                            .child(
+                                "Это когда серия выходит в Японии. Русская озвучка появляется \
+                                 позже: обычно через несколько часов, иногда через день-два.",
+                            ),
+                    ),
             )
             .child(bar)
             .child(body)
+    }
+}
+
+/// The user's time zone as "UTC+4" or "UTC+5:30".
+fn zone_label(at: i64) -> String {
+    let offset = utc_offset(at);
+    let sign = if offset < 0 { '-' } else { '+' };
+    let (hours, minutes) = (offset.abs() / 3600, offset.abs() % 3600 / 60);
+    if minutes == 0 {
+        format!("UTC{sign}{hours}")
+    } else {
+        format!("UTC{sign}{hours}:{minutes:02}")
     }
 }
