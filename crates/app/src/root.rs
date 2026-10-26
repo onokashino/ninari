@@ -122,6 +122,8 @@ impl Root {
             core.player_host.set_screen_height(height as u32);
         }
         #[cfg(windows)]
+        crate::win_move::hold_moves(&*window);
+        #[cfg(windows)]
         let video_window = VideoWindow::new(&*window)
             .inspect(|v| core.player_host.set_video_window(v.handle()))
             .map_err(|e| tracing::warn!("no video window, mpv plays in its own: {e:#}"))

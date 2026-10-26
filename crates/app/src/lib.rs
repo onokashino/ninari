@@ -69,5 +69,7 @@ pub mod updates;
 pub mod video;
 #[cfg(windows)]
 pub mod video_win;
+#[cfg(windows)]
+pub mod win_move;
 
 pub type OnClick = Box<dyn Fn(&ClickEvent, &mut Window, &mut App) + 'static>;
