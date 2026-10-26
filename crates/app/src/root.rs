@@ -16,11 +16,13 @@ use ninari_core::error::AppError;
 use crate::button::{Size, Variant, button};
 use crate::catalog_page::{CatalogPage, Seed};
 use crate::core::Core;
+use crate::episode_grid::chip;
 use crate::history_page::HistoryPage;
 use crate::home::{Home, HomeEvent};
 use crate::hover_card;
 use crate::images::Images;
 use crate::library_page::{LibraryPage, Open};
+use crate::modal::modal;
 #[cfg(target_os = "linux")]
 use crate::mpv::Mpv;
 use crate::nav::PageEvent;
@@ -33,6 +35,7 @@ use crate::player::{Closed, Player, Request};
 use crate::popover;
 use crate::posters::poster;
 use crate::rail;
+use crate::random::{self, RandomFilter, RandomState};
 use crate::repo_offer::{Closed as OfferClosed, RepoOffer};
 use crate::schedule_page::SchedulePage;
 use crate::search_page::{SearchEvent, SearchPage};
@@ -86,6 +89,7 @@ pub struct Root {
     images: Entity<Images>,
     /// The title page drawn last: it frees its banners once another page is on screen.
     drawn_title: Option<Entity<Title>>,
+    random: RandomState,
 }
 
 impl Root {
@@ -120,6 +124,7 @@ impl Root {
             .inspect(|v| core.player_host.set_video_window(v.handle()))
             .map_err(|e| tracing::warn!("no video window, mpv plays in its own: {e:#}"))
             .ok();
+        let random_filter = core.setting(random::SETTING).unwrap_or_default();
         let images = Images::new(cx);
         cx.set_global(crate::images::Current(images.clone()));
         Self {
@@ -150,6 +155,10 @@ impl Root {
             autoscroll: Autoscroll::default(),
             images,
             drawn_title: None,
+            random: RandomState {
+                filter: random_filter,
+                ..Default::default()
+            },
         }
     }
 
@@ -167,9 +176,288 @@ impl Root {
                 PageEvent::Open(route) => root.open(*route, cx),
                 PageEvent::Play(request) => root.play(request.clone(), window, cx),
                 PageEvent::Changed => root.library_changed(cx),
+                PageEvent::Random => root.roll_random(cx),
             },
         )
         .detach();
+    }
+
+    /// Opens a random title by the random filter; from the random title, another one.
+    pub fn roll_random(&mut self, cx: &mut Context<Self>) {
+        if self.random.rolling {
+            return;
+        }
+        self.random.rolling = true;
+        self.random.note = None;
+        let job = random::roll(&self.core, &self.random.filter, self.random.seen.clone());
+        cx.spawn(async move |root, cx| {
+            let got = job.await;
+            root.update(cx, |root, cx| {
+                root.random.rolling = false;
+                match got {
+                    Ok(Some(id)) => {
+                        root.random.seen.insert(id);
+                        root.random.current = Some(id);
+                        root.open(Route::Title(id), cx);
+                    }
+                    Ok(None) => root.random.note = Some("Под эти условия ничего не нашлось".into()),
+                    Err(e) => root.random.note = Some(format!("Не вышло: {e:#}")),
+                }
+                cx.notify();
+            })
+            .ok();
+        })
+        .detach();
+        cx.notify();
+    }
+
+    fn set_random(&mut self, cx: &mut Context<Self>, change: impl FnOnce(&mut RandomFilter)) {
+        change(&mut self.random.filter);
+        // The titles shown so far were picked by other conditions.
+        self.random.seen.clear();
+        if let Ok(value) = serde_json::to_value(&self.random.filter) {
+            self.core.save_setting(random::SETTING, value);
+        }
+        cx.notify();
+    }
+
+    fn open_random_settings(&mut self, cx: &mut Context<Self>) {
+        self.random.settings = true;
+        if self.random.genres.is_none() {
+            let job = self.core.run(|c| async move { c.catalog.genres().await });
+            cx.spawn(async move |root, cx| {
+                if let Ok(list) = job.await {
+                    root.update(cx, |root, cx| {
+                        root.random.genres =
+                            Some(list.into_iter().filter(|g| g.kind == "genre").collect());
+                        cx.notify();
+                    })
+                    .ok();
+                }
+            })
+            .detach();
+        }
+        cx.notify();
+    }
+
+    /// Along the top of the random title (or of any page, after a roll that found nothing):
+    /// another one, and what it may be.
+    fn random_bar(&self, route: Route, cx: &mut Context<Self>) -> Option<AnyElement> {
+        let on_it = matches!(route, Route::Title(id) if self.random.current == Some(id));
+        if !on_it && self.random.note.is_none() {
+            return None;
+        }
+        let accent = Accent::colors(cx).0;
+        let count = self.random.filter.count();
+        Some(
+            div()
+                .occlude()
+                .absolute()
+                .top(px(10.))
+                .right(px(24.))
+                .flex()
+                .items_center()
+                .gap(px(8.))
+                .pl(px(16.))
+                .pr(px(6.))
+                .py(px(6.))
+                .rounded(theme::R_L)
+                .bg(rgba((theme::INK << 8) | 0xec))
+                .border_1()
+                .border_color(theme::line())
+                .child(
+                    div()
+                        .text_size(px(13.))
+                        .font_weight(FontWeight::BOLD)
+                        .text_color(rgb(theme::TEXT_2))
+                        .child(
+                            self.random
+                                .note
+                                .clone()
+                                .unwrap_or_else(|| "Случайный тайтл".into()),
+                        ),
+                )
+                .child(
+                    button(
+                        "random-again",
+                        if self.random.rolling {
+                            "Ищем…"
+                        } else {
+                            "Ещё раз"
+                        },
+                        Some("shuffle"),
+                        Variant::Primary,
+                        Size::M,
+                        accent,
+                    )
+                    .on_click(cx.listener(|root, _, _, cx| root.roll_random(cx))),
+                )
+                .child(
+                    button(
+                        "random-settings",
+                        if count > 0 {
+                            format!("Условия · {count}")
+                        } else {
+                            "Условия".into()
+                        },
+                        Some("filter"),
+                        Variant::Glass,
+                        Size::M,
+                        accent,
+                    )
+                    .on_click(cx.listener(|root, _, _, cx| root.open_random_settings(cx))),
+                )
+                .into_any_element(),
+        )
+    }
+
+    /// What a random title may be: genres, years and a studio, kept between runs.
+    fn random_settings(&self, window: &mut Window, cx: &mut Context<Self>) -> Option<AnyElement> {
+        let accent = Accent::colors(cx).0;
+        let f = self.random.filter.clone();
+        let row = |label: &'static str, chips: Vec<AnyElement>| {
+            div()
+                .flex()
+                .gap(px(16.))
+                .child(
+                    div()
+                        .w(px(70.))
+                        .flex_none()
+                        .pt(px(6.))
+                        .text_size(px(13.))
+                        .text_color(rgb(theme::TEXT_3))
+                        .child(label),
+                )
+                .child(
+                    div()
+                        .flex_1()
+                        .flex()
+                        .flex_wrap()
+                        .gap(px(6.))
+                        .children(chips),
+                )
+        };
+        let genres: Vec<AnyElement> = match &self.random.genres {
+            None => vec![
+                div()
+                    .text_size(px(13.))
+                    .text_color(rgb(theme::TEXT_3))
+                    .pt(px(6.))
+                    .child("Загружаем жанры")
+                    .into_any_element(),
+            ],
+            Some(list) => list
+                .iter()
+                .map(|g| {
+                    let id = g.id;
+                    chip(("random-genre", id as u64), f.genres.contains(&id), accent)
+                        .on_click(cx.listener(move |root, _, _, cx| {
+                            root.set_random(cx, |f| {
+                                if f.genres.contains(&id) {
+                                    f.genres.retain(|&g| g != id);
+                                } else {
+                                    f.genres.push(id);
+                                }
+                            })
+                        }))
+                        .child(g.name.clone())
+                        .into_any_element()
+                })
+                .collect(),
+        };
+        let mut years = vec![
+            chip("random-years-any", f.years.is_none(), accent)
+                .on_click(cx.listener(|root, _, _, cx| root.set_random(cx, |f| f.years = None)))
+                .child("Любые")
+                .into_any_element(),
+        ];
+        years.extend(random::YEARS.iter().enumerate().map(|(i, (value, label))| {
+            let value = value.to_string();
+            chip(
+                ("random-years", i as u64),
+                f.years.as_deref() == Some(&value),
+                accent,
+            )
+            .on_click(cx.listener(move |root, _, _, cx| {
+                let value = value.clone();
+                root.set_random(cx, |f| f.years = Some(value))
+            }))
+            .child(*label)
+            .into_any_element()
+        }));
+        let mut studios = vec![
+            chip("random-studio-any", f.studio.is_none(), accent)
+                .on_click(cx.listener(|root, _, _, cx| root.set_random(cx, |f| f.studio = None)))
+                .child("Любая")
+                .into_any_element(),
+        ];
+        studios.extend(random::STUDIOS.iter().map(|&(id, name)| {
+            chip(("random-studio", id as u64), f.studio == Some(id), accent)
+                .on_click(
+                    cx.listener(move |root, _, _, cx| root.set_random(cx, |f| f.studio = Some(id))),
+                )
+                .child(name)
+                .into_any_element()
+        }));
+        let body = div()
+            .flex()
+            .flex_col()
+            .gap(px(14.))
+            .w_full()
+            .child(row("Жанры", genres))
+            .child(row("Годы", years))
+            .child(row("Студия", studios))
+            .child(
+                div()
+                    .flex()
+                    .justify_end()
+                    .gap(px(8.))
+                    .mt(px(6.))
+                    .child(
+                        button(
+                            "random-reset",
+                            "Сбросить",
+                            None,
+                            Variant::Glass,
+                            Size::M,
+                            accent,
+                        )
+                        .on_click(cx.listener(|root, _, _, cx| {
+                            root.set_random(cx, |f| *f = RandomFilter::default())
+                        })),
+                    )
+                    .child(
+                        button(
+                            "random-go",
+                            "Найти",
+                            Some("shuffle"),
+                            Variant::Primary,
+                            Size::M,
+                            accent,
+                        )
+                        .on_click(cx.listener(|root, _, _, cx| {
+                            root.random.settings = false;
+                            root.roll_random(cx);
+                        })),
+                    ),
+            )
+            .into_any_element();
+        let root = cx.entity().downgrade();
+        modal(
+            "random-settings",
+            self.random.settings,
+            "Случайный тайтл",
+            body,
+            Rc::new(move |_, cx| {
+                root.update(cx, |root, cx| {
+                    root.random.settings = false;
+                    cx.notify();
+                })
+                .ok();
+            }),
+            window,
+            cx,
+        )
     }
 
     /// The lists that show the library fetch it again.
@@ -639,6 +927,8 @@ impl Render for Root {
         self.glide.step(&scroll, window);
         self.autoscroll.step(&scroll, window);
         let page = self.page(route, window, cx);
+        let random_bar = self.random_bar(route, cx);
+        let random_settings = self.random_settings(window, cx);
         let details = {
             let (open, changed) = (cx.entity().downgrade(), cx.entity().downgrade());
             hover_card::overlay(
@@ -673,9 +963,13 @@ impl Render for Root {
             .flex()
             .bg(rgb(theme::INK))
             .child(glow)
-            .child(rail::rail(route, Accent::colors(cx).0, |to| {
-                Box::new(cx.listener(move |root, _, _, cx| root.open(to, cx)))
-            }))
+            .child(rail::rail(
+                route,
+                Accent::colors(cx).0,
+                |to| Box::new(cx.listener(move |root, _, _, cx| root.open(to, cx))),
+                Box::new(cx.listener(|root, _, _, cx| root.roll_random(cx))),
+                self.random.rolling,
+            ))
             .child(
                 div()
                     .relative()
@@ -694,9 +988,11 @@ impl Render for Root {
                     )
                     .child(self.glide.catcher(scroll.clone()))
                     .child(self.autoscroll.layer())
-                    .children(pinned),
+                    .children(pinned)
+                    .children(random_bar),
             )
             .children(self.autoscroll.mark())
+            .children(random_settings)
             .children(details)
             .children(self.palette.clone())
             .children(self.offer.clone())

@@ -1,15 +1,14 @@
-//! The catalog: ready-made collections, every filter Shikimori has, an order, a random pick, and
+//! The catalog: ready-made collections, every filter Shikimori has, an order, and
 //! the titles in a grid that loads more as its end comes near.
 
 use std::collections::HashSet;
 use std::f32::consts::PI;
 use std::rc::Rc;
 use std::sync::Arc;
-use std::time::Duration;
 
 use gpui::{
-    Animation, AnimationExt, AnyElement, Context, Div, EventEmitter, FontWeight, Hsla, IntoElement,
-    Render, Transformation, Window, canvas, div, prelude::*, px, radians, rgb,
+    AnyElement, Context, Div, EventEmitter, FontWeight, Hsla, IntoElement, Render, Transformation,
+    Window, canvas, div, prelude::*, px, radians, rgb,
 };
 use ninari_core::catalog::browse::{BrowseFilter, Genre, PAGE_SIZE};
 use ninari_core::catalog::calendar::civil_from_days;
@@ -17,24 +16,22 @@ use ninari_core::feeds::{self, AnimeCard};
 
 use crate::assets::icon;
 use crate::button::{Size, Variant, button};
-use crate::cards::{CardText, poster_card_sized, poster_frame};
+use crate::cards::{CardText, poster_card_sized};
 use crate::catalog::{
     Mark, active_filters, cycle_genre, genre_mark, is_named_season, preset_of, presets, season_at,
     season_title, shift_season, toggle, years, years_season,
 };
 use crate::clock::now;
 use crate::core::Core;
-use crate::data::{Load, fetch, title};
+use crate::data::{Load, fetch};
 use crate::episode_grid::chip;
-use crate::format::{kind_label, plural};
 use crate::lazy_grid::{self, GridTop, lazy_grid, row_height};
 use crate::library_page::{content_width, grid_columns};
-use crate::modal::modal;
 use crate::nav::{PageEvent, Route};
 use crate::pinned::{self, Pin};
 use crate::popover::Menu;
 use crate::select::{SelectOption, select};
-use crate::theme::{self, Accent, EASE};
+use crate::theme::{self, Accent};
 
 type Options = [(&'static str, &'static str)];
 
@@ -77,27 +74,11 @@ const ORDERS: &Options = &[
     ("aired_on", "По дате выхода"),
     ("name", "По названию"),
 ];
-/// A pick that came up a moment ago is rolled again, up to this many times.
-const TRIES: usize = 3;
-
 /// What a title's link asks the catalog to show.
 #[derive(Clone)]
 pub enum Seed {
     Genre(String),
     Studio(i64, String),
-}
-
-/// "Случайный тайтл": a title by the filters, shown in a dialog over the catalog.
-#[derive(Default)]
-struct Pick {
-    open: bool,
-    rolling: bool,
-    card: Option<AnimeCard>,
-    /// Nothing matches the filters.
-    empty: bool,
-    planned: bool,
-    error: Option<String>,
-    seen: HashSet<i64>,
 }
 
 pub struct CatalogPage {
@@ -123,7 +104,6 @@ pub struct CatalogPage {
     order_menu: Menu,
     from_menu: Menu,
     to_menu: Menu,
-    pick: Pick,
 }
 
 impl EventEmitter<PageEvent> for CatalogPage {}
@@ -150,7 +130,6 @@ impl CatalogPage {
             order_menu: Menu::default(),
             from_menu: Menu::default(),
             to_menu: Menu::default(),
-            pick: Pick::default(),
         };
         fetch(
             cx,
@@ -281,68 +260,6 @@ impl CatalogPage {
     }
 
     /// A random title by the filters, not one of the last few if it can help it.
-    fn roll(&mut self, cx: &mut Context<Self>) {
-        if self.pick.rolling {
-            return;
-        }
-        self.pick.rolling = true;
-        self.pick.error = None;
-        let mut filter = self.filter.clone();
-        filter.order = Some("random".into());
-        let seen = self.pick.seen.clone();
-        fetch(
-            cx,
-            self.core.run(move |c| async move {
-                let mut found = None;
-                for _ in 0..TRIES {
-                    found = c.catalog.browse(&filter, 1).await?.into_iter().next();
-                    if !found.as_ref().is_some_and(|a| seen.contains(&a.id)) {
-                        break;
-                    }
-                }
-                Ok(found.map(|a| feeds::card(&c.posters, a)))
-            }),
-            |p, got| {
-                p.pick.rolling = false;
-                match got {
-                    Load::Ready(found) => {
-                        p.pick.empty = found.is_none();
-                        if let Some(c) = &found {
-                            p.pick.seen.insert(c.anime.id);
-                        }
-                        p.pick.card = found;
-                        p.pick.planned = false;
-                    }
-                    Load::Failed(e) => p.pick.error = Some(e),
-                    Load::Pending => {}
-                }
-            },
-        );
-    }
-
-    fn plan(&mut self, id: i64, cx: &mut Context<Self>) {
-        let job = self.core.run(move |c| async move {
-            c.library.set_status(id, "planned")?;
-            c.account.push(id);
-            Ok(())
-        });
-        cx.spawn(async move |page, cx| {
-            let got = job.await;
-            page.update(cx, |page, cx| {
-                match got {
-                    Ok(()) => {
-                        page.pick.planned = true;
-                        cx.emit(PageEvent::Changed);
-                    }
-                    Err(e) => page.pick.error = Some(format!("{e:#}")),
-                }
-                cx.notify();
-            })
-            .ok();
-        })
-        .detach();
-    }
-
     fn toggles(
         &self,
         key: &'static str,
@@ -907,181 +824,6 @@ impl CatalogPage {
             }
         }
     }
-
-    fn pick_body(&self, accent: Hsla, cx: &mut Context<Self>) -> AnyElement {
-        let pick = &self.pick;
-        let shown: AnyElement = if pick.empty {
-            note("По этим фильтрам ничего нет. Убери часть из них и попробуй ещё раз.")
-        } else if let Some(card) = &pick.card {
-            let a = &card.anime;
-            let id = a.id;
-            let name = title(a);
-            let meta: Vec<String> = [
-                Some(kind_label(a.kind.as_deref())).filter(|k| !k.is_empty()),
-                a.year.map(|y| y.to_string()),
-                (a.episodes > 0).then(|| {
-                    format!(
-                        "{} {}",
-                        a.episodes,
-                        plural(a.episodes, "серия", "серии", "серий")
-                    )
-                }),
-            ]
-            .into_iter()
-            .flatten()
-            .collect();
-            let about = div()
-                .flex()
-                .flex_col()
-                .flex_1()
-                .min_w(px(0.))
-                .gap(px(8.))
-                .child(
-                    div()
-                        .text_size(px(24.))
-                        .line_height(px(29.))
-                        .font_weight(FontWeight::EXTRA_BOLD)
-                        .child(name.clone()),
-                )
-                .when(a.russian.as_ref().is_some_and(|r| *r != a.name), |d| {
-                    d.child(
-                        div()
-                            .text_size(px(13.))
-                            .font_weight(FontWeight::SEMIBOLD)
-                            .text_color(rgb(theme::TEXT_3))
-                            .child(a.name.clone()),
-                    )
-                })
-                .when(!meta.is_empty(), |d| {
-                    d.child(
-                        div()
-                            .text_size(px(13.))
-                            .font_weight(FontWeight::BOLD)
-                            .text_color(rgb(theme::TEXT_2))
-                            .child(meta.join(", ")),
-                    )
-                })
-                .when(!a.genres.is_empty(), |d| {
-                    d.child(div().flex().flex_wrap().gap(px(6.)).children(
-                        a.genres.iter().take(5).map(|g| {
-                            div()
-                                .px(px(10.))
-                                .py(px(2.))
-                                .rounded_full()
-                                .bg(theme::glass_strong())
-                                .text_size(px(12.))
-                                .font_weight(FontWeight::BOLD)
-                                .child(g.clone())
-                        }),
-                    ))
-                })
-                .children(a.description.clone().filter(|d| !d.is_empty()).map(|d| {
-                    div()
-                        .text_size(px(13.))
-                        .line_height(px(20.))
-                        .text_color(rgb(theme::TEXT_2))
-                        .line_clamp(6)
-                        .text_ellipsis()
-                        .child(d.split_whitespace().collect::<Vec<_>>().join(" "))
-                }));
-            div()
-                .flex()
-                .items_start()
-                .gap(px(24.))
-                .child(
-                    div()
-                        .id("pick-poster")
-                        .flex_none()
-                        .cursor_pointer()
-                        .on_click(cx.listener(move |page, _, _, cx| page.open_pick(id, cx)))
-                        .child(poster_frame(card, px(150.), theme::R_M, cx)),
-                )
-                .child(about)
-                // Each new pick fades in where the last one was.
-                .with_animation(
-                    ("pick", id as u64),
-                    Animation::new(Duration::from_millis(260)).with_easing(|t| EASE.at(t)),
-                    |el, t| el.opacity(t),
-                )
-                .into_any_element()
-        } else {
-            note("Выбираю…")
-        };
-        let actions = div()
-            .flex()
-            .flex_wrap()
-            .gap(px(8.))
-            .child(
-                button(
-                    "pick-again",
-                    "Ещё раз",
-                    Some("shuffle"),
-                    Variant::Glass,
-                    Size::M,
-                    accent,
-                )
-                .when(pick.rolling, |b| b.opacity(0.6))
-                .on_click(cx.listener(|page, _, _, cx| {
-                    page.roll(cx);
-                    cx.notify();
-                })),
-            )
-            .children(pick.card.as_ref().map(|c| {
-                let id = c.anime.id;
-                let planned = pick.planned;
-                button(
-                    "pick-plan",
-                    if planned {
-                        "В планах"
-                    } else {
-                        "В планы"
-                    },
-                    Some(if planned { "check" } else { "plus" }),
-                    Variant::Glass,
-                    Size::M,
-                    accent,
-                )
-                .when(planned, |b| b.opacity(0.6))
-                .on_click(cx.listener(move |page, _, _, cx| {
-                    if !page.pick.planned {
-                        page.plan(id, cx);
-                    }
-                }))
-            }))
-            .children(pick.card.as_ref().map(|c| {
-                let id = c.anime.id;
-                div().ml_auto().child(
-                    button(
-                        "pick-open",
-                        "Открыть",
-                        Some("play"),
-                        Variant::Primary,
-                        Size::M,
-                        accent,
-                    )
-                    .on_click(cx.listener(move |page, _, _, cx| page.open_pick(id, cx))),
-                )
-            }));
-        div()
-            .flex()
-            .flex_col()
-            .gap(px(24.))
-            .child(shown)
-            .children(pick.error.clone().map(|e| {
-                div()
-                    .text_color(rgb(theme::DANGER))
-                    .text_size(px(13.))
-                    .child(e)
-            }))
-            .child(actions)
-            .into_any_element()
-    }
-
-    fn open_pick(&mut self, id: i64, cx: &mut Context<Self>) {
-        self.pick.open = false;
-        cx.emit(PageEvent::Open(Route::Title(id)));
-        cx.notify();
-    }
 }
 
 /// A label in one column, its chips wrapping beside it.
@@ -1119,13 +861,6 @@ fn hint(text: &'static str) -> Div {
         .child(text)
 }
 
-fn note(text: &'static str) -> AnyElement {
-    div()
-        .text_color(rgb(theme::TEXT_2))
-        .child(text)
-        .into_any_element()
-}
-
 impl Render for CatalogPage {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let accent = Accent::colors(cx).0;
@@ -1153,35 +888,12 @@ impl Render for CatalogPage {
                     Size::M,
                     accent,
                 )
-                .on_click(cx.listener(|page, _, _, cx| {
-                    page.pick.open = true;
-                    page.pick.card = None;
-                    page.pick.empty = false;
-                    page.roll(cx);
-                    cx.notify();
-                })),
+                // The title opens at once, as from the rail.
+                .on_click(cx.listener(|_, _, _, cx| cx.emit(PageEvent::Random))),
             );
 
         let controls = (!self.pin.pinned()).then(|| self.controls(32., accent, window, cx));
         let grid = self.grid(accent, window, cx);
-        let body = self.pick_body(accent, cx);
-        let page = cx.entity().downgrade();
-        let dialog = modal(
-            "random-pick",
-            self.pick.open,
-            "Случайный тайтл",
-            body,
-            Rc::new(move |_, cx| {
-                page.update(cx, |page, cx| {
-                    page.pick.open = false;
-                    cx.notify();
-                })
-                .ok();
-            }),
-            window,
-            cx,
-        );
-
         div()
             .flex()
             .flex_col()
@@ -1192,6 +904,5 @@ impl Render for CatalogPage {
             .child(head)
             .child(div().mt(px(-12.)).child(self.pin.slot(controls)))
             .child(grid)
-            .children(dialog)
     }
 }

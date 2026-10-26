@@ -174,4 +174,6 @@ pub enum PageEvent {
     Play(crate::player::Request),
     /// The library changed: lists elsewhere need a reload.
     Changed,
+    /// A random title, opened at once.
+    Random,
 }

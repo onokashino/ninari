@@ -40,6 +40,7 @@ pub mod player_panels;
 pub mod popover;
 pub mod posters;
 pub mod rail;
+pub mod random;
 pub mod repo_offer;
 pub mod root;
 pub mod schedule;

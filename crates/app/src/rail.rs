@@ -47,14 +47,20 @@ pub fn brand_mark(size: f32) -> Div {
 }
 
 /// `link(route)` makes the click handler that opens `route`.
-pub fn rail(current: Route, accent: Hsla, link: impl Fn(Route) -> OnClick) -> impl IntoElement {
-    let item = |route: Route, name: &'static str, text: &'static str| {
-        let active = route == current;
+/// `random` opens a random title (and, on that title, another one); `rolling` while it looks.
+pub fn rail(
+    current: Route,
+    accent: Hsla,
+    link: impl Fn(Route) -> OnClick,
+    random: OnClick,
+    rolling: bool,
+) -> impl IntoElement {
+    let item = |on_click: OnClick, active: bool, name: &'static str, text: &'static str| {
         div()
             .id(name)
             .group("rail-item")
             .cursor_pointer()
-            .on_click(link(route))
+            .on_click(on_click)
             .w(px(WIDTH - 12.))
             .pt(px(8.))
             .pb(px(6.))
@@ -118,7 +124,24 @@ pub fn rail(current: Route, accent: Hsla, link: impl Fn(Route) -> OnClick) -> im
                 .flex()
                 .flex_col()
                 .gap(px(8.))
-                .children(TOP.map(|(route, name, text)| item(route, name, text))),
+                .children(
+                    TOP.map(|(route, name, text)| item(link(route), route == current, name, text)),
+                )
+                .child(item(
+                    random,
+                    false,
+                    "shuffle",
+                    if rolling {
+                        "Ищем…"
+                    } else {
+                        "Случайное"
+                    },
+                )),
         )
-        .child(item(Route::Settings, "settings", label(Route::Settings)))
+        .child(item(
+            link(Route::Settings),
+            current == Route::Settings,
+            "settings",
+            label(Route::Settings),
+        ))
 }
