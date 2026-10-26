@@ -206,7 +206,7 @@ impl ShikimoriPane {
     }
 }
 
-fn report_line(r: &ImportReport) -> String {
+pub fn report_line(r: &ImportReport) -> String {
     if r.total == 0 {
         return "Список пуст.".into();
     }

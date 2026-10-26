@@ -52,6 +52,7 @@ pub mod season_switch;
 pub mod select;
 pub mod settings_data;
 pub mod settings_devices;
+pub mod settings_mal;
 pub mod settings_page;
 pub mod settings_plugins;
 pub mod settings_shikimori;

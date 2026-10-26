@@ -11,6 +11,7 @@ pub mod extensions;
 pub mod feeds;
 pub mod library;
 pub mod maintenance;
+pub mod mal;
 pub mod net;
 pub mod player;
 pub mod proxy;

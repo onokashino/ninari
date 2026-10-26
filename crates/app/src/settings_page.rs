@@ -18,6 +18,7 @@ use crate::player_panels::switch;
 use crate::rail::{self, brand_mark};
 use crate::settings_data::DataPane;
 use crate::settings_devices::DevicesPane;
+use crate::settings_mal::MalPane;
 use crate::settings_plugins::PluginsPane;
 use crate::settings_shikimori::ShikimoriPane;
 use crate::theme::{self, Accent};
@@ -26,7 +27,7 @@ use crate::updates::{self, CURRENT, Progress, UpdateInfo, check};
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Section {
     Sources,
-    Shikimori,
+    Integrations,
     Devices,
     Player,
     App,
@@ -35,7 +36,7 @@ pub enum Section {
 
 const SECTIONS: [(Section, &str, &str); 6] = [
     (Section::Sources, "Источники", "puzzle"),
-    (Section::Shikimori, "Shikimori", "user"),
+    (Section::Integrations, "Интеграции", "user"),
     (Section::Devices, "Устройства", "devices"),
     (Section::Player, "Плеер", "sparkle"),
     (Section::App, "Приложение", "settings"),
@@ -85,6 +86,7 @@ pub struct SettingsPage {
     core: Arc<Core>,
     section: Section,
     shikimori: Option<Entity<ShikimoriPane>>,
+    mal: Option<Entity<MalPane>>,
     plugins: Option<Entity<PluginsPane>>,
     devices: Option<Entity<DevicesPane>>,
     data: Option<Entity<DataPane>>,
@@ -106,6 +108,7 @@ impl SettingsPage {
             core,
             section: Section::Sources,
             shikimori: None,
+            mal: None,
             plugins: None,
             devices: None,
             data: None,
@@ -391,9 +394,18 @@ impl Render for SettingsPage {
             Section::Sources => Self::pane(&mut self.plugins, &self.core, PluginsPane::new, cx),
             Section::Devices => Self::pane(&mut self.devices, &self.core, DevicesPane::new, cx),
             Section::Data => Self::pane(&mut self.data, &self.core, DataPane::new, cx),
-            Section::Shikimori => {
-                Self::pane(&mut self.shikimori, &self.core, ShikimoriPane::new, cx)
-            }
+            Section::Integrations => div()
+                .flex()
+                .flex_col()
+                .gap(px(24.))
+                .child(Self::pane(
+                    &mut self.shikimori,
+                    &self.core,
+                    ShikimoriPane::new,
+                    cx,
+                ))
+                .child(Self::pane(&mut self.mal, &self.core, MalPane::new, cx))
+                .into_any_element(),
         };
         div()
             .flex()

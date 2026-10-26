@@ -19,11 +19,11 @@ use crate::library::{EpisodeProgress, Library, LibraryEntry};
 use crate::net::HttpClient;
 
 const DOMAIN: &str = "https://shikimori.io";
-const PORT: u16 = 47831;
+pub(crate) const PORT: u16 = 47831;
 pub const REDIRECT: &str = "http://127.0.0.1:47831/oauth/shikimori";
 const SESSION_SETTING: &str = "shikimori.session";
 /// How long the browser has to come back with the code.
-const SIGN_IN_WAIT: Duration = Duration::from_secs(300);
+pub(crate) const SIGN_IN_WAIT: Duration = Duration::from_secs(300);
 const CLIENT_ID: Option<&str> = option_env!("SHIKIMORI_CLIENT_ID");
 const CLIENT_SECRET: Option<&str> = option_env!("SHIKIMORI_CLIENT_SECRET");
 
@@ -43,21 +43,21 @@ pub struct Profile {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
-struct Session {
-    access: String,
-    refresh: String,
-    expires_at: i64,
-    profile: Option<Profile>,
+pub(crate) struct Session {
+    pub(crate) access: String,
+    pub(crate) refresh: String,
+    pub(crate) expires_at: i64,
+    pub(crate) profile: Option<Profile>,
 }
 
-/// What the list on Shikimori should say about a title.
+/// What the list on Shikimori (or MyAnimeList) should say about a title.
 #[derive(Debug, Clone, PartialEq)]
-struct Desired {
-    status: String,
+pub(crate) struct Desired {
+    pub(crate) status: String,
     /// The furthest episode watched.
-    episodes: i64,
-    score: Option<i64>,
-    note: Option<String>,
+    pub(crate) episodes: i64,
+    pub(crate) score: Option<i64>,
+    pub(crate) note: Option<String>,
 }
 
 /// The keys this build carries; a secret the release workflow lacks comes in empty.
@@ -91,9 +91,9 @@ fn authorize_url(client_id: &str, state: &str) -> String {
     url.into()
 }
 
-/// The code in the browser's request ("GET /oauth/shikimori?code=..&state=.. HTTP/1.1").
-/// `Ok(None)` for anything that is not the answer to this sign-in: a favicon, a stale state.
-fn callback(request: &str, state: &str) -> Result<Option<String>, AppError> {
+/// The code in the browser's request ("GET /oauth/shikimori?code=..&state=.. HTTP/1.1") to
+/// `path`. `Ok(None)` for anything that is not the answer to this sign-in: a favicon, a stale state.
+fn callback(request: &str, path: &str, state: &str) -> Result<Option<String>, AppError> {
     let Some(target) = request.lines().next().and_then(|l| l.split(' ').nth(1)) else {
         return Ok(None);
     };
@@ -101,16 +101,21 @@ fn callback(request: &str, state: &str) -> Result<Option<String>, AppError> {
         return Ok(None);
     };
     let q: HashMap<_, _> = url.query_pairs().collect();
-    if url.path() != "/oauth/shikimori" || q.get("state").map(|s| s.as_ref()) != Some(state) {
+    if url.path() != path || q.get("state").map(|s| s.as_ref()) != Some(state) {
         return Ok(None);
     }
     if q.contains_key("error") {
-        return Err(AppError::new("Cancelled", "вход отменён на Shikimori"));
+        return Err(AppError::new("Cancelled", "вход отменён"));
     }
     Ok(q.get("code").map(|c| c.to_string()))
 }
 
-async fn wait_for_code(listener: TcpListener, state: &str) -> Result<String, AppError> {
+/// Answers the browser on `listener` until it comes back to `path` with the code.
+pub(crate) async fn wait_for_code(
+    listener: TcpListener,
+    path: &str,
+    state: &str,
+) -> Result<String, AppError> {
     loop {
         let (mut sock, _) = listener.accept().await?;
         let mut buf = vec![0u8; 8192];
@@ -118,7 +123,7 @@ async fn wait_for_code(listener: TcpListener, state: &str) -> Result<String, App
         else {
             continue;
         };
-        let answer = callback(&String::from_utf8_lossy(&buf[..n]), state);
+        let answer = callback(&String::from_utf8_lossy(&buf[..n]), path, state);
         let (status, page) = match &answer {
             Ok(Some(_)) => ("200 OK", DONE_PAGE),
             Err(_) => ("200 OK", DENIED_PAGE),
@@ -135,10 +140,10 @@ async fn wait_for_code(listener: TcpListener, state: &str) -> Result<String, App
     }
 }
 
-fn parse_token(body: &Value, now: i64) -> Result<Session, AppError> {
+pub(crate) fn parse_token(body: &Value, now: i64) -> Result<Session, AppError> {
     let field = |k: &str| body[k].as_str().map(str::to_string);
     let (Some(access), Some(refresh)) = (field("access_token"), field("refresh_token")) else {
-        return Err(AppError::new("Unauthorized", "Shikimori не выдал токен"));
+        return Err(AppError::new("Unauthorized", "сервис не выдал токен"));
     };
     let created = body["created_at"].as_i64().unwrap_or(now);
     Ok(Session {
@@ -150,7 +155,7 @@ fn parse_token(body: &Value, now: i64) -> Result<Session, AppError> {
 }
 
 /// Nothing for a title only remembered here (a chosen dub, a score without a status).
-fn desired(entry: &LibraryEntry, progress: &[EpisodeProgress]) -> Option<Desired> {
+pub(crate) fn desired(entry: &LibraryEntry, progress: &[EpisodeProgress]) -> Option<Desired> {
     if entry.status == "none" {
         return None;
     }
@@ -200,6 +205,8 @@ pub struct Account {
     http: HttpClient,
     db: Db,
     library: Arc<Library>,
+    /// The list on MyAnimeList, kept in step the same way.
+    pub mal: Arc<crate::mal::Mal>,
     /// A sign-in waiting for the browser; sending to it gives up.
     pending: Mutex<Option<tokio::sync::oneshot::Sender<()>>>,
     /// What was last sent per title, so the same state is sent once.
@@ -212,6 +219,7 @@ pub struct Account {
 impl Account {
     pub fn new(http: HttpClient, db: Db, library: Arc<Library>) -> Arc<Self> {
         Arc::new(Self {
+            mal: crate::mal::Mal::new(http.clone(), db.clone(), library.clone()),
             http,
             db,
             library,
@@ -264,7 +272,7 @@ impl Account {
         let code = async {
             open(&authorize_url(client_id, &state))?;
             tokio::select! {
-                r = tokio::time::timeout(SIGN_IN_WAIT, wait_for_code(listener, &state)) => r
+                r = tokio::time::timeout(SIGN_IN_WAIT, wait_for_code(listener, "/oauth/shikimori", &state)) => r
                     .map_err(|_| AppError::new("Timeout", "Shikimori не ответил за 5 минут, попробуй ещё раз"))?,
                 _ = rx => Err(AppError::new("Cancelled", "вход отменён")),
             }
@@ -422,6 +430,7 @@ impl Account {
     /// Does nothing when signed out or when the same was already sent. Call it on the core's
     /// runtime.
     pub fn push(self: &Arc<Self>, id: i64) {
+        self.mal.push(id);
         if self.session().is_none() {
             return;
         }
@@ -509,18 +518,44 @@ mod tests {
     fn the_browser_answer_is_taken_only_for_this_sign_in() {
         let req = |target: &str| format!("GET {target} HTTP/1.1\r\nHost: 127.0.0.1:47831\r\n\r\n");
         assert_eq!(
-            callback(&req("/oauth/shikimori?code=abc&state=s1"), "s1")
-                .unwrap()
-                .as_deref(),
+            callback(
+                &req("/oauth/shikimori?code=abc&state=s1"),
+                "/oauth/shikimori",
+                "s1"
+            )
+            .unwrap()
+            .as_deref(),
             Some("abc")
         );
         assert_eq!(
-            callback(&req("/oauth/shikimori?code=abc&state=other"), "s1").unwrap(),
+            callback(
+                &req("/oauth/shikimori?code=abc&state=other"),
+                "/oauth/shikimori",
+                "s1"
+            )
+            .unwrap(),
             None
         );
-        assert_eq!(callback(&req("/favicon.ico"), "s1").unwrap(), None);
-        assert_eq!(callback("garbage", "s1").unwrap(), None);
-        assert!(callback(&req("/oauth/shikimori?error=access_denied&state=s1"), "s1").is_err());
+        assert_eq!(
+            callback(
+                &req("/oauth/mal?code=abc&state=s1"),
+                "/oauth/shikimori",
+                "s1"
+            )
+            .unwrap(),
+            None
+        );
+        assert_eq!(
+            callback(&req("/favicon.ico"), "/oauth/shikimori", "s1").unwrap(),
+            None
+        );
+        assert_eq!(callback("garbage", "/oauth/shikimori", "s1").unwrap(), None);
+        assert!(callback(
+            &req("/oauth/shikimori?error=access_denied&state=s1"),
+            "/oauth/shikimori",
+            "s1"
+        )
+        .is_err());
     }
 
     #[test]
