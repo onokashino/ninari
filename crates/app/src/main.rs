@@ -272,5 +272,8 @@ fn run() -> anyhow::Result<()> {
         cx.on_window_closed(move |cx, _| on_closed(&closed_core, cx))
             .detach();
     });
-    Ok(())
+    // Quitting is final. Dropping the runtime would wait for its blocking tasks (a seek preview,
+    // the search for devices), keeping the process and its locked files alive after the window:
+    // an installer could not replace the program.
+    std::process::exit(0)
 }

@@ -10,7 +10,7 @@ section: guide
 ## Одной командой
 
 ```bash
-curl -L https://github.com/onokashino/ninari/releases/download/v0.1.6/ninari-0.1.6-linux-x86_64.tar.gz | tar xz && ./ninari-*/install.sh
+curl -L https://github.com/onokashino/ninari/releases/download/v0.1.7/ninari-0.1.7-linux-x86_64.tar.gz | tar xz && ./ninari-*/install.sh
 ```
 
 Команда скачивает последний релиз, распаковывает его в текущую папку и запускает установщик. Актуальная команда всегда есть на странице [Скачать](../download.html).

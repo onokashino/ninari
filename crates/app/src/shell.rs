@@ -252,10 +252,77 @@ pub fn tray(rt: &tokio::runtime::Handle, tx: UnboundedSender<AppMsg>) {
     });
 }
 
-#[cfg(not(target_os = "linux"))]
-pub fn tray(_rt: &tokio::runtime::Handle, _tx: UnboundedSender<AppMsg>) {
-    // The Windows tray goes with the Windows build.
+/// The same on Windows. Made on the thread that runs the window's messages, which the tray's
+/// own window needs; it lives as long as that thread.
+#[cfg(windows)]
+pub fn tray(_rt: &tokio::runtime::Handle, tx: UnboundedSender<AppMsg>) {
+    use tray_icon::menu::{Menu, MenuEvent, MenuItem};
+    use tray_icon::{Icon, MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
+
+    thread_local! {
+        static TRAY: std::cell::RefCell<Option<tray_icon::TrayIcon>> = Default::default();
+    }
+    let icon = image::load_from_memory(include_bytes!("../assets/icon.png"))
+        .map(|i| {
+            i.resize(64, 64, image::imageops::FilterType::Lanczos3)
+                .into_rgba8()
+        })
+        .ok()
+        .and_then(|i| {
+            let (w, h) = i.dimensions();
+            Icon::from_rgba(i.into_raw(), w, h).ok()
+        });
+    let Some(icon) = icon else {
+        tracing::info!("no tray icon: its picture did not load");
+        return;
+    };
+    let (open, quit) = (
+        MenuItem::new("Открыть ninari", true, None),
+        MenuItem::new("Выход", true, None),
+    );
+    let menu = Menu::new();
+    if let Err(e) = menu.append_items(&[&open, &quit]) {
+        tracing::info!("no tray icon: {e}");
+        return;
+    }
+    let (open_id, quit_id) = (open.id().clone(), quit.id().clone());
+    let menu_tx = tx.clone();
+    MenuEvent::set_event_handler(Some(move |e: MenuEvent| {
+        let msg = if e.id == quit_id {
+            AppMsg::Quit
+        } else if e.id == open_id {
+            AppMsg::Show
+        } else {
+            return;
+        };
+        let _ = menu_tx.send(msg);
+    }));
+    TrayIconEvent::set_event_handler(Some(move |e: TrayIconEvent| {
+        if let TrayIconEvent::Click {
+            button: MouseButton::Left,
+            button_state: MouseButtonState::Up,
+            ..
+        } = e
+        {
+            let _ = tx.send(AppMsg::Show);
+        }
+    }));
+    match TrayIconBuilder::new()
+        .with_tooltip("ninari")
+        .with_icon(icon)
+        .with_menu(Box::new(menu))
+        .build()
+    {
+        Ok(tray) => {
+            TRAY.with(|t| *t.borrow_mut() = Some(tray));
+            TRAY_UP.store(true, Ordering::Relaxed);
+        }
+        Err(e) => tracing::info!("no tray icon: {e}"),
+    }
 }
+
+#[cfg(not(any(target_os = "linux", windows)))]
+pub fn tray(_rt: &tokio::runtime::Handle, _tx: UnboundedSender<AppMsg>) {}
 
 /// Makes `ninari://` links open this program: a desktop entry naming it, and the scheme's default
 /// handler.

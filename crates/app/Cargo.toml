@@ -1,6 +1,6 @@
 [package]
 name = "ninari-app"
-version = "0.1.6"
+version = "0.1.7"
 description = "ninari: a desktop app for watching anime, drawn with GPUI"
 authors = ["onokashino"]
 license = "GPL-3.0-only"
@@ -67,6 +67,10 @@ ksni = "0.3"
 wayland-client = "0.31"
 # A wayland-client connection over the window's own wl_display, for the video surface.
 wayland-backend = { version = "0.3", features = ["client_system"] }
+
+# The tray icon on Windows (Linux has ksni).
+[target.'cfg(windows)'.dependencies]
+tray-icon = "0.21"
 
 # The program's icon on Windows.
 [target.'cfg(windows)'.build-dependencies]

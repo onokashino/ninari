@@ -187,6 +187,8 @@ pub fn install(info: &UpdateInfo, cx: &mut App) {
     cx.spawn(async move |cx| match job.await {
         Ok(program) => cx.update(|cx| {
             set(Progress::Installing, cx);
+            // What was playing keeps its place.
+            Core::get(cx).player.shutdown();
             restart(program.as_deref());
             cx.quit();
         }),
