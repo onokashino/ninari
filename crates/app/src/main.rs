@@ -183,6 +183,8 @@ fn main() -> anyhow::Result<()> {
     // Lives as long as the app: the stream proxy and the sources' requests run on it.
     let rt = tokio::runtime::Runtime::new()?;
     let core = Core::open(&rt)?;
+    // The download of an update installed by now.
+    let _ = std::fs::remove_dir_all(ninari_app::updates::folder());
     let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel();
     shell::listen(rt.handle(), tx.clone());
     shell::tray(rt.handle(), tx);

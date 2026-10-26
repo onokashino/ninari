@@ -13,6 +13,21 @@ git tag -a v0.2.0 -m "Что нового, как это покажет прил
 git push origin master v0.2.0
 ```
 
-Workflow `.github/workflows/release.yml` соберёт архив в контейнере Arch Linux (`scripts/package.sh`) и опубликует релиз вместе с `latest.json`. Установленные приложения читают этот файл и предлагают обновиться.
+Workflow `.github/workflows/release.yml` соберёт архив для Linux в контейнере Arch Linux (`scripts/package.sh`) и zip с установщиком для Windows (`scripts/package.ps1`, Inno Setup), а затем опубликует релиз вместе с `latest.json`:
+
+```json
+{
+  "version": "0.2.0",
+  "notes": "сообщение тега",
+  "platforms": {
+    "linux-x86_64": { "url": "…/ninari-0.2.0-linux-x86_64.tar.gz", "sha256": "…" },
+    "windows-x86_64": { "url": "…/ninari-0.2.0-windows-x86_64-setup.exe", "sha256": "…" }
+  }
+}
+```
+
+Установленные приложения читают этот файл, предлагают обновиться, скачивают пакет своей системы и сверяют контрольную сумму. На Linux они распаковывают архив и запускают его `install.sh`, на Windows тихо запускают установщик. Потом приложение перезапускается.
+
+Каждый push в master, который трогает приложение, тоже собирает обе системы. Пакеты лежат в артефактах запуска, релиз при этом не создаётся.
 
 Тег должен совпадать с версией в `Cargo.toml`, иначе сборка остановится. Ключи Shikimori берутся из секретов репозитория `SHIKIMORI_CLIENT_ID` и `SHIKIMORI_CLIENT_SECRET`.

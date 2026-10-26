@@ -37,7 +37,9 @@ The archive carries mpv and every library it needs. The system's mpv is neither 
 
 ## Updating
 
-When a new version is out, ninari says so in a corner of its window. Download the new archive and run its `install.sh`: the old version is replaced, your library and settings stay.
+When a new version is out, ninari says so in a corner of its window. Press «Обновить» (Update): the app downloads it, checks its checksum, installs it over itself and restarts. Your library and settings stay. To check by hand, open the settings, «Приложение» (App).
+
+Version 0.1.0 cannot do this yet: install the new version over it once with the same command as the first time.
 
 ## Removing
 

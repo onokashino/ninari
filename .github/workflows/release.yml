@@ -63,30 +63,10 @@ jobs:
           SHIKIMORI_CLIENT_SECRET: ${{ secrets.SHIKIMORI_CLIENT_SECRET }}
         run: bash scripts/package.sh
 
-      - name: latest.json
-        run: |
-          version="$(sed -n 's/^version = "\(.*\)"/\1/p' crates/app/Cargo.toml | head -1)"
-          # The tag's message, when it has one, is what the app shows about the update. The
-          # checkout keeps the tag as a bare name for the commit: fetch the tag itself.
-          git fetch --force origin "refs/tags/$GITHUB_REF_NAME:refs/tags/$GITHUB_REF_NAME" 2>/dev/null || true
-          notes="$(git tag -l --format='%(contents)' "$GITHUB_REF_NAME" 2>/dev/null || true)"
-          jq -n --arg version "$version" --arg notes "$notes" \
-            '{version: $version, notes: $notes}' > dist/latest.json
-
       - uses: actions/upload-artifact@v4
-        if: ${{ !startsWith(github.ref, 'refs/tags/') }}
         with:
           name: ninari-linux
           path: dist/*.tar.gz
-
-      - uses: softprops/action-gh-release@v2
-        if: startsWith(github.ref, 'refs/tags/')
-        with:
-          name: ninari ${{ github.ref_name }}
-          files: |
-            dist/*.tar.gz
-            dist/latest.json
-          generate_release_notes: true
 
   windows:
     runs-on: windows-2025
@@ -136,17 +116,52 @@ jobs:
           }
 
       - uses: actions/upload-artifact@v4
-        if: ${{ !startsWith(github.ref, 'refs/tags/') }}
         with:
           name: ninari-windows
           path: |
             dist/*.zip
             dist/*-setup.exe
 
+  # A tag's release: both systems' packages and latest.json, which tells the app the new version,
+  # what is new in it (the tag's message) and, per system, the package to install with its
+  # checksum.
+  publish:
+    if: startsWith(github.ref, 'refs/tags/')
+    needs: [linux, windows]
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: latest.json
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          base="https://github.com/$GITHUB_REPOSITORY/releases/download/$GITHUB_REF_NAME"
+          # The checkout keeps the tag as a bare name for the commit: fetch the tag itself.
+          git fetch --force origin "refs/tags/$GITHUB_REF_NAME:refs/tags/$GITHUB_REF_NAME"
+          notes="$(git tag -l --format='%(contents)' "$GITHUB_REF_NAME")"
+          entry() { # entry <file>
+            jq -n --arg url "$base/$1" --arg sha256 "$(sha256sum "dist/$1" | cut -d' ' -f1)" \
+              '{url: $url, sha256: $sha256}'
+          }
+          linux="ninari-$version-linux-x86_64.tar.gz"
+          windows="ninari-$version-windows-x86_64-setup.exe"
+          jq -n --arg version "$version" --arg notes "$notes" \
+            --argjson linux "$(entry "$linux")" --argjson windows "$(entry "$windows")" \
+            '{version: $version, notes: $notes,
+              platforms: {"linux-x86_64": $linux, "windows-x86_64": $windows}}' > dist/latest.json
+          cat dist/latest.json
+
       - uses: softprops/action-gh-release@v2
-        if: startsWith(github.ref, 'refs/tags/')
         with:
           name: ninari ${{ github.ref_name }}
           files: |
+            dist/*.tar.gz
             dist/*.zip
             dist/*-setup.exe
+            dist/latest.json
+          generate_release_notes: true

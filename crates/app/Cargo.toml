@@ -39,6 +39,8 @@ gpui_platform = { git = "https://github.com/zed-industries/zed", rev = "cfb894a5
 # Text shaping for screenshots drawn without a window.
 gpui_wgpu = { git = "https://github.com/zed-industries/zed", rev = "cfb894a5dde8ccf3fba1659164f47fdd1c024e2e" }
 notify-rust = "4"
+# Checks an update's download against the checksum the release gives.
+sha2 = "0.10"
 
 # Zed's own patches, which a git dependency does not bring along: GPUI's task and event loop
 # forks, and an EGL fix.

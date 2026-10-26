@@ -7,7 +7,7 @@ use std::sync::Arc;
 use gpui::{
     AnyElement, AnyView, Context, Entity, EventEmitter, FocusHandle, FontWeight, IntoElement,
     KeyDownEvent, MouseButton, NavigationDirection, Transformation, Window, div, image_cache,
-    prelude::*, px, rgb, rgba, size, svg,
+    prelude::*, px, relative, rgb, rgba, size, svg,
 };
 use ninari_core::catalog::posters::Palette;
 use ninari_core::error::AppError;
@@ -39,7 +39,7 @@ use crate::smooth::Glide;
 use crate::stats_page::StatsPage;
 use crate::theme::{self, Accent};
 use crate::title::{Title, TitleEvent};
-use crate::updates::{RELEASES, UpdateInfo};
+use crate::updates::{self, Progress, UpdateInfo};
 #[cfg(target_os = "linux")]
 use crate::video::Video;
 
@@ -643,9 +643,41 @@ impl Render for Root {
     }
 }
 
-/// A new version in the corner of the window.
+/// A new version in the corner of the window: offered, then downloading and installing in place.
 fn update_banner(info: UpdateInfo, cx: &mut Context<Root>) -> impl IntoElement + use<> {
     let accent = Accent::colors(cx).0;
+    let progress = updates::progress(cx);
+    let (title, busy) = match &progress {
+        Progress::Downloading(share) => (
+            format!("Скачиваем {} · {}%", info.version, (share * 100.).round()),
+            true,
+        ),
+        Progress::Installing => (format!("Устанавливаем {}", info.version), true),
+        _ => (format!("Доступна версия {}", info.version), false),
+    };
+    let installs = updates::can_install(&info);
+    let (share, failed) = match progress {
+        Progress::Downloading(share) => (Some(share), None),
+        Progress::Installing => (Some(1.), None),
+        Progress::Failed(e) => (None, Some(e)),
+        Progress::Idle => (None, None),
+    };
+    let get = {
+        let info = info.clone();
+        button(
+            "update-get",
+            match (installs, failed.is_some()) {
+                (true, true) => "Повторить",
+                (true, false) => "Обновить",
+                (false, _) => "Скачать",
+            },
+            None,
+            Variant::Primary,
+            Size::M,
+            accent,
+        )
+        .on_click(move |_, _, cx| updates::install(&info, cx))
+    };
     div()
         .occlude()
         .absolute()
@@ -660,12 +692,17 @@ fn update_banner(info: UpdateInfo, cx: &mut Context<Root>) -> impl IntoElement +
         .bg(rgba(0x12121af0))
         .border_1()
         .border_color(rgba(0xffffff14))
-        .child(
-            div()
-                .font_weight(FontWeight::EXTRA_BOLD)
-                .child(format!("Доступна версия {}", info.version)),
-        )
-        .children(info.notes.map(|n| {
+        .child(div().font_weight(FontWeight::EXTRA_BOLD).child(title))
+        .children(share.map(|share| {
+            div().h(px(4.)).rounded_full().bg(rgba(0xffffff14)).child(
+                div()
+                    .h_full()
+                    .rounded_full()
+                    .bg(accent)
+                    .w(relative(share.clamp(0.02, 1.))),
+            )
+        }))
+        .children(info.notes.filter(|_| !busy).map(|n| {
             div()
                 .text_size(px(13.))
                 .text_color(rgb(theme::TEXT_2))
@@ -673,23 +710,17 @@ fn update_banner(info: UpdateInfo, cx: &mut Context<Root>) -> impl IntoElement +
                 .text_ellipsis()
                 .child(n)
         }))
-        .child(
+        .children(failed.map(|e| {
             div()
-                .flex()
-                .gap(px(8.))
-                .mt(px(4.))
-                .child(
-                    button(
-                        "update-get",
-                        "Скачать",
-                        None,
-                        Variant::Primary,
-                        Size::M,
-                        accent,
-                    )
-                    .on_click(|_, _, cx| cx.open_url(RELEASES)),
-                )
-                .child(
+                .text_size(px(13.))
+                .text_color(rgb(theme::DANGER))
+                .line_clamp(3)
+                .text_ellipsis()
+                .child(format!("Не удалось обновить: {e}"))
+        }))
+        .when(!busy, |banner| {
+            banner.child(
+                div().flex().gap(px(8.)).mt(px(4.)).child(get).child(
                     button(
                         "update-later",
                         "Позже",
@@ -703,7 +734,8 @@ fn update_banner(info: UpdateInfo, cx: &mut Context<Root>) -> impl IntoElement +
                         cx.notify();
                     })),
                 ),
-        )
+            )
+        })
 }
 
 fn onboarding(core: &Arc<Core>, window: &mut Window, cx: &mut Context<Root>) -> Entity<Onboarding> {

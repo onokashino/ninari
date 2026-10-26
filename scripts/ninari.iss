@@ -46,3 +46,5 @@ Root: HKCU; Subkey: "Software\Classes\ninari\shell\open\command"; ValueType: str
 
 [Run]
 Filename: "{app}\ninari.exe"; Description: "{cm:LaunchProgram,ninari}"; Flags: nowait postinstall skipifsilent
+; An update from inside the app runs this installer quietly: ninari starts again by itself.
+Filename: "{app}\ninari.exe"; Flags: nowait; Check: WizardSilent

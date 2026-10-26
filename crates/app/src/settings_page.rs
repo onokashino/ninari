@@ -21,7 +21,7 @@ use crate::settings_devices::DevicesPane;
 use crate::settings_plugins::PluginsPane;
 use crate::settings_shikimori::ShikimoriPane;
 use crate::theme::{self, Accent};
-use crate::updates::{CURRENT, RELEASES, UpdateInfo, check};
+use crate::updates::{self, CURRENT, Progress, UpdateInfo, check};
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Section {
@@ -227,16 +227,30 @@ impl SettingsPage {
             Some(Load::Ready(Some(info))) => Some(info.clone()),
             _ => None,
         };
+        let progress = updates::progress(cx);
+        let busy = matches!(progress, Progress::Downloading(_) | Progress::Installing);
         let action = match &found {
-            Some(info) => button(
-                "open-release",
-                format!("Скачать {}", info.version),
-                None,
-                Variant::Primary,
-                Size::M,
-                accent,
-            )
-            .on_click(|_, _, cx| cx.open_url(RELEASES)),
+            Some(info) => {
+                let label = match &progress {
+                    Progress::Downloading(share) => {
+                        format!("Скачиваем {}%", (share * 100.).round())
+                    }
+                    Progress::Installing => "Устанавливаем".into(),
+                    _ if updates::can_install(info) => format!("Обновить до {}", info.version),
+                    _ => format!("Скачать {}", info.version),
+                };
+                let info = info.clone();
+                button(
+                    "open-release",
+                    label,
+                    None,
+                    Variant::Primary,
+                    Size::M,
+                    accent,
+                )
+                .when(busy, |b| b.opacity(0.6))
+                .on_click(move |_, _, cx| updates::install(&info, cx))
+            }
             None => button(
                 "check-update",
                 "Проверить обновления",
@@ -259,8 +273,14 @@ impl SettingsPage {
                     .child(action),
             )
             .children(found.and_then(|i| i.notes).map(muted))
-            .children(match &self.update {
-                Some(Load::Failed(e)) => Some(
+            .children(match (&self.update, progress) {
+                (_, Progress::Failed(e)) => Some(
+                    div()
+                        .text_size(px(13.))
+                        .text_color(rgb(theme::DANGER))
+                        .child(format!("Не удалось обновить: {e}")),
+                ),
+                (Some(Load::Failed(e)), _) => Some(
                     div()
                         .text_size(px(13.))
                         .text_color(rgb(theme::DANGER))
