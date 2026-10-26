@@ -248,7 +248,14 @@ pub fn about(
                                 .flex_col()
                                 .gap(px(10.))
                                 .pt(px(10.))
-                                .children(hidden)
+                                // Folded away, the hidden rows are not built; the box keeps the
+                                // height they had, to open to it.
+                                .when(more.open > 0. || measured.get() == px(0.), |d| {
+                                    d.children(hidden)
+                                })
+                                .when(more.open == 0. && measured.get() > px(0.), |d| {
+                                    d.h(measured.get())
+                                })
                                 .child(
                                     canvas(
                                         move |b, _, _| measured.set(b.size.height),
@@ -402,10 +409,13 @@ pub fn videos(
         if items.is_empty() {
             continue;
         }
-        let cards: Vec<AnyElement> = items
+        // Only the videos in or next to the row's visible part are built.
+        let shown = rows[i].visible(items.len(), 240., 16., window);
+        let cards: Vec<AnyElement> = items[shown.clone()]
             .iter()
             .map(|v| video(v, accent, window, cx).into_any_element())
             .collect();
+        let cards = crate::scroll_row::spaced(shown, items.len(), 240., 16., cards);
         section = section.child(
             div()
                 .flex()
