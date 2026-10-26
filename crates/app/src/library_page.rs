@@ -12,12 +12,15 @@ use gpui::{
 use ninari_core::feeds::{self, LibraryItem};
 
 use crate::cards::{CardText, poster_card_sized};
+use crate::catalog::toggle;
+use crate::catalog_page::{KINDS, Options, SCORES, STATUSES, filters_toggle, row};
 use crate::core::Core;
 use crate::data::{Load, fetch};
 use crate::episode_grid::chip;
 use crate::format::library_status;
 use crate::lazy_grid::{self, GridTop, lazy_grid, row_height};
-use crate::library::{SORTS, Sort, matches, query_variants, sort};
+use crate::library::{Filter, SORTS, Sort, choices, matches, query_variants, sort};
+use crate::nav::PageEvent;
 use crate::nav::Route;
 use crate::pinned::{self, Pin};
 use crate::popover::Menu;
@@ -39,10 +42,13 @@ pub struct LibraryPage {
     sort: Sort,
     sort_menu: Menu,
     query: Entity<TextInput>,
+    filter: Filter,
+    filters_open: bool,
     lists: HashMap<&'static str, Load<Vec<LibraryItem>>>,
 }
 
 impl EventEmitter<Open> for LibraryPage {}
+impl EventEmitter<PageEvent> for LibraryPage {}
 
 impl LibraryPage {
     pub fn new(core: Arc<Core>, cx: &mut Context<Self>) -> Self {
@@ -65,6 +71,8 @@ impl LibraryPage {
             sort: Sort::Recent,
             sort_menu: Menu::default(),
             query,
+            filter: Filter::default(),
+            filters_open: false,
             lists: HashMap::new(),
         };
         page.load(cx);
@@ -195,14 +203,164 @@ impl LibraryPage {
                     .max_w(px(420.))
                     .child(self.query.clone()),
             )
+            .child(self.filters_bar(accent, cx))
             .child(div().ml_auto().child(order));
 
+        // Pinned, the controls stay a slim bar: the open filters are left in the page.
+        let filters = (self.filters_open && !self.pin.pinned()).then(|| self.filters(accent, cx));
         div()
             .flex()
             .flex_col()
             .gap(px(gap))
             .child(tabs)
             .child(toolbar)
+            .children(filters)
+            .into_any_element()
+    }
+
+    fn filters_bar(&self, accent: gpui::Hsla, cx: &mut Context<Self>) -> impl IntoElement {
+        let count = self.filter.count();
+        let toggle = filters_toggle(self.filters_open, count, accent).on_click(cx.listener(
+            |page, _, _, cx| {
+                page.filters_open = !page.filters_open;
+                if page.filters_open && page.pin.pinned() {
+                    cx.emit(PageEvent::Top);
+                }
+                cx.notify();
+            },
+        ));
+        let reset = (count > 0).then(|| {
+            div()
+                .id("library-reset")
+                .cursor_pointer()
+                .px(px(14.))
+                .py(px(8.))
+                .rounded_full()
+                .text_size(px(13.))
+                .font_weight(FontWeight::BOLD)
+                .text_color(rgb(theme::TEXT_2))
+                .hover(|s| s.bg(theme::glass_strong()).text_color(rgb(theme::TEXT)))
+                .on_click(cx.listener(|page, _, _, cx| {
+                    page.filter = Filter::default();
+                    cx.notify();
+                }))
+                .child("Сбросить")
+        });
+        div()
+            .flex()
+            .items_center()
+            .gap(px(4.))
+            .child(toggle)
+            .children(reset)
+    }
+
+    /// Chips that turn the values of a list filter on and off.
+    fn toggles(
+        &self,
+        key: &'static str,
+        options: &'static Options,
+        field: fn(&mut Filter) -> &mut Vec<String>,
+        accent: gpui::Hsla,
+        cx: &mut Context<Self>,
+    ) -> Vec<AnyElement> {
+        let current = field(&mut self.filter.clone()).clone();
+        options
+            .iter()
+            .enumerate()
+            .map(|(i, (value, label))| {
+                chip((key, i), current.iter().any(|v| v == value), accent)
+                    .on_click(cx.listener(move |page, _, _, cx| {
+                        toggle(field(&mut page.filter), value);
+                        cx.notify();
+                    }))
+                    .child(*label)
+                    .into_any_element()
+            })
+            .collect()
+    }
+
+    fn filters(&self, accent: gpui::Hsla, cx: &mut Context<Self>) -> AnyElement {
+        let (decades, genres) = match self.lists.get(self.status) {
+            Some(Load::Ready(list)) => choices(list),
+            _ => Default::default(),
+        };
+        let score = self.filter.score;
+        let mut scores = vec![
+            chip("library-score-any", score.is_none(), accent)
+                .on_click(cx.listener(|page, _, _, cx| {
+                    page.filter.score = None;
+                    cx.notify();
+                }))
+                .child("Любая")
+                .into_any_element(),
+        ];
+        scores.extend(SCORES.map(|n| {
+            chip(("library-score", n as u64), score == Some(n), accent)
+                .on_click(cx.listener(move |page, _, _, cx| {
+                    page.filter.score = Some(n);
+                    cx.notify();
+                }))
+                .child(format!("от {n}"))
+                .into_any_element()
+        }));
+        let decade_chips = decades
+            .into_iter()
+            .map(|d| {
+                let on = self.filter.decades.contains(&d);
+                chip(("library-decade", d as u64), on, accent)
+                    .on_click(cx.listener(move |page, _, _, cx| {
+                        let all = &mut page.filter.decades;
+                        match all.iter().position(|x| *x == d) {
+                            Some(i) => {
+                                all.remove(i);
+                            }
+                            None => all.push(d),
+                        }
+                        cx.notify();
+                    }))
+                    .child(format!("{d}-е"))
+                    .into_any_element()
+            })
+            .collect::<Vec<_>>();
+        let genre_chips = genres
+            .into_iter()
+            .enumerate()
+            .map(|(i, g)| {
+                let on = self.filter.genres.contains(&g);
+                let label = g.clone();
+                chip(("library-genre", i), on, accent)
+                    .on_click(cx.listener(move |page, _, _, cx| {
+                        toggle(&mut page.filter.genres, &g);
+                        cx.notify();
+                    }))
+                    .child(label)
+                    .into_any_element()
+            })
+            .collect::<Vec<_>>();
+        div()
+            .flex()
+            .flex_col()
+            .gap(px(12.))
+            .p(px(24.))
+            .rounded(theme::R_L)
+            .bg(theme::glass())
+            .border_1()
+            .border_color(theme::line())
+            .child(row(
+                "Тип",
+                self.toggles("library-kind", KINDS, |f| &mut f.kinds, accent, cx),
+            ))
+            .child(row(
+                "Статус",
+                self.toggles("library-status", STATUSES, |f| &mut f.statuses, accent, cx),
+            ))
+            .when(!decade_chips.is_empty(), |d| {
+                d.child(row("Годы", decade_chips))
+            })
+            .child(row("Оценка", scores))
+            .when(!genre_chips.is_empty(), |d| {
+                d.child(row("Жанры", genre_chips))
+            })
             .into_any_element()
     }
 
@@ -261,13 +419,19 @@ impl Render for LibraryPage {
                 .into_any_element(),
             Some(Load::Ready(list)) => {
                 let variants = query_variants(&query);
-                let mut shown: Vec<&LibraryItem> =
-                    list.iter().filter(|i| matches(i, &variants)).collect();
+                let mut shown: Vec<&LibraryItem> = list
+                    .iter()
+                    .filter(|i| matches(i, &variants) && self.filter.passes(i))
+                    .collect();
                 sort(&mut shown, self.sort);
                 if shown.is_empty() {
                     div()
                         .text_color(rgb(theme::TEXT_2))
-                        .child(format!("В этом списке нет «{query}»."))
+                        .child(if query.trim().is_empty() {
+                            "В этом списке нет тайтлов с такими фильтрами.".to_string()
+                        } else {
+                            format!("В этом списке нет «{query}».")
+                        })
                         .into_any_element()
                 } else {
                     let (columns, _) = grid_columns(width);

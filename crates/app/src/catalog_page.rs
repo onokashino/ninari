@@ -36,9 +36,9 @@ use crate::search_page::{SearchEvent, SearchPage};
 use crate::select::{SelectOption, select};
 use crate::theme::{self, Accent};
 
-type Options = [(&'static str, &'static str)];
+pub type Options = [(&'static str, &'static str)];
 
-const KINDS: &Options = &[
+pub const KINDS: &Options = &[
     ("tv", "Сериал"),
     ("movie", "Фильм"),
     ("ova", "OVA"),
@@ -46,7 +46,7 @@ const KINDS: &Options = &[
     ("special", "Спешл"),
     ("tv_special", "TV-спешл"),
 ];
-const STATUSES: &Options = &[
+pub const STATUSES: &Options = &[
     ("ongoing", "Онгоинг"),
     ("released", "Вышел"),
     ("anons", "Анонс"),
@@ -63,7 +63,7 @@ const DURATIONS: &Options = &[
     ("D", "до 30 мин"),
     ("F", "дольше 30 мин"),
 ];
-const SCORES: [u32; 3] = [6, 7, 8];
+pub const SCORES: [u32; 3] = [6, 7, 8];
 const GROUPS: &Options = &[
     ("genre", "Жанры"),
     ("theme", "Темы"),
@@ -612,60 +612,15 @@ impl CatalogPage {
     fn bar(&self, accent: Hsla, window: &mut Window, cx: &mut Context<Self>) -> Div {
         let count = active_filters(&self.filter);
         let open = self.filters_open;
-        let toggle = div()
-            .id("filters")
-            .cursor_pointer()
-            .flex()
-            .items_center()
-            .gap(px(8.))
-            .px(px(14.))
-            .py(px(8.))
-            .rounded_full()
-            .border_1()
-            .border_color(theme::line())
-            .text_size(px(13.))
-            .font_weight(FontWeight::BOLD)
-            .map(|d| {
-                if open {
-                    d.bg(theme::glass_strong()).text_color(rgb(theme::TEXT))
-                } else {
-                    d.bg(theme::glass())
-                        .text_color(rgb(theme::TEXT_2))
-                        .hover(|s| s.bg(theme::glass_strong()).text_color(rgb(theme::TEXT)))
-                }
-            })
-            .on_click(cx.listener(|page, _, _, cx| {
-                page.filters_open = !page.filters_open;
-                // Pinned, the panel would cover the page with nothing to scroll: the page goes
-                // back up and the filters open in their place.
-                if page.filters_open && page.pin.pinned() {
-                    cx.emit(PageEvent::Top);
-                }
-                cx.notify();
-            }))
-            .child(icon("filter", 18.).text_color(rgb(if open {
-                theme::TEXT
-            } else {
-                theme::TEXT_2
-            })))
-            .child("Фильтры")
-            .when(count > 0, |d| {
-                d.child(
-                    div()
-                        .flex()
-                        .items_center()
-                        .justify_center()
-                        .min_w(px(20.))
-                        .h(px(20.))
-                        .px(px(6.))
-                        .rounded_full()
-                        .bg(accent)
-                        .text_color(rgb(theme::ACCENT_CONTRAST))
-                        .text_size(px(12.))
-                        .font_weight(FontWeight::EXTRA_BOLD)
-                        .child(count.to_string()),
-                )
-            });
+        let toggle = filters_toggle(open, count, accent).on_click(cx.listener(|page, _, _, cx| {
+            page.filters_open = !page.filters_open;
+            // Pinned, the panel would cover the page with nothing to scroll: the page goes
+            // back up and the filters open in their place.
+            if page.filters_open && page.pin.pinned() {
+                cx.emit(PageEvent::Top);
+            }
+            cx.notify();
+        }));
         let reset = (count > 0).then(|| {
             div()
                 .id("reset")
@@ -906,8 +861,53 @@ impl CatalogPage {
     }
 }
 
+/// The button that opens the filters, with how many are on.
+pub fn filters_toggle(open: bool, count: usize, accent: Hsla) -> gpui::Stateful<Div> {
+    div()
+        .id("filters")
+        .cursor_pointer()
+        .flex()
+        .items_center()
+        .gap(px(8.))
+        .px(px(14.))
+        .py(px(8.))
+        .rounded_full()
+        .border_1()
+        .border_color(theme::line())
+        .text_size(px(13.))
+        .font_weight(FontWeight::BOLD)
+        .map(|d| {
+            if open {
+                d.bg(theme::glass_strong()).text_color(rgb(theme::TEXT))
+            } else {
+                d.bg(theme::glass())
+                    .text_color(rgb(theme::TEXT_2))
+                    .hover(|s| s.bg(theme::glass_strong()).text_color(rgb(theme::TEXT)))
+            }
+        })
+        .child(icon("filter", 18.).text_color(rgb(if open { theme::TEXT } else { theme::TEXT_2 })))
+        .child("Фильтры")
+        .when(count > 0, |d| {
+            d.child(
+                div()
+                    .flex()
+                    .items_center()
+                    .justify_center()
+                    .min_w(px(20.))
+                    .h(px(20.))
+                    .px(px(6.))
+                    .rounded_full()
+                    .bg(accent)
+                    .text_color(rgb(theme::ACCENT_CONTRAST))
+                    .text_size(px(12.))
+                    .font_weight(FontWeight::EXTRA_BOLD)
+                    .child(count.to_string()),
+            )
+        })
+}
+
 /// A label in one column, its chips wrapping beside it.
-fn row(label: &'static str, chips: Vec<AnyElement>) -> Div {
+pub fn row(label: &'static str, chips: Vec<AnyElement>) -> Div {
     div()
         .flex()
         .items_start()

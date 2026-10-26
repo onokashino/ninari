@@ -558,6 +558,7 @@ impl Root {
             root.open(*route, cx)
         })
         .detach();
+        self.on_page_events(&page, window, cx);
         self.library = Some(page.clone());
         page
     }

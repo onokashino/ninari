@@ -16,7 +16,7 @@ capped() { # capped <memory> <command...>
   # Half the cores at a lower priority: a build must not freeze the desktop.
   local cores; cores=$(( $(nproc) * 50 ))
   systemd-run --user --scope -q -p MemoryMax="$mem" -p MemorySwapMax=0 \
-    -p CPUQuota="${cores}%" -p Nice=10 "$@"
+    -p CPUQuota="${cores}%" nice -n 10 "$@"
 }
 
 build_gpui() {
