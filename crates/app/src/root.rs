@@ -38,7 +38,6 @@ use crate::rail;
 use crate::random::{self, RandomFilter, RandomState};
 use crate::repo_offer::{Closed as OfferClosed, RepoOffer};
 use crate::schedule_page::SchedulePage;
-use crate::search_page::{SearchEvent, SearchPage};
 use crate::settings_page::SettingsPage;
 use crate::smooth::{Autoscroll, Glide};
 use crate::stats_page::StatsPage;
@@ -68,7 +67,6 @@ pub struct Root {
     people: HashMap<Route, AnyView>,
     library: Option<Entity<LibraryPage>>,
     catalog: Option<Entity<CatalogPage>>,
-    search: Option<Entity<SearchPage>>,
     schedule: Option<Entity<SchedulePage>>,
     history_page: Option<Entity<HistoryPage>>,
     stats: Option<Entity<StatsPage>>,
@@ -143,7 +141,6 @@ impl Root {
             people: HashMap::new(),
             library: None,
             catalog: None,
-            search: None,
             schedule: None,
             history_page: None,
             stats: None,
@@ -486,29 +483,6 @@ impl Root {
         }
     }
 
-    fn search_page(&mut self, window: &mut Window, cx: &mut Context<Self>) -> Entity<SearchPage> {
-        if let Some(page) = &self.search {
-            return page.clone();
-        }
-        let core = self.core.clone();
-        let page = cx.new(|cx| SearchPage::new(core, cx));
-        cx.subscribe_in(&page, window, |root, _, Open(route), _, cx| {
-            root.open(*route, cx)
-        })
-        .detach();
-        cx.subscribe_in(
-            &page,
-            window,
-            |root, _, event: &SearchEvent, window, cx| match event {
-                SearchEvent::Open(route) => root.open(*route, cx),
-                SearchEvent::Play(request) => root.play(request.clone(), window, cx),
-            },
-        )
-        .detach();
-        self.search = Some(page.clone());
-        page
-    }
-
     /// Ctrl+K: the quick jump opens, or closes when it is open. Not over the player.
     pub fn toggle_palette(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         if self.palette.take().is_some() {
@@ -560,10 +534,10 @@ impl Root {
         cx.notify();
     }
 
-    /// Opens search with `text` in it, for `shot`.
+    /// Opens the catalog searching `text`, for `shot`.
     pub fn search_for(&mut self, text: &str, window: &mut Window, cx: &mut Context<Self>) {
-        self.open(Route::Search, cx);
-        let page = self.search_page(window, cx);
+        self.open(Route::Catalog, cx);
+        let page = self.catalog_page(window, cx);
         page.update(cx, |page, cx| page.set_query(text, cx));
     }
 
@@ -634,7 +608,13 @@ impl Root {
     pub fn open(&mut self, route: Route, cx: &mut Context<Self>) {
         self.glide.stop();
         self.autoscroll.stop();
+        // Search is the catalog's: going there is going to the catalog's field.
         self.focus_search = route == Route::Search;
+        let route = if route == Route::Search {
+            Route::Catalog
+        } else {
+            route
+        };
         self.history.open(route);
         cx.notify();
     }
@@ -752,7 +732,13 @@ impl Root {
             Route::Home => self.home.clone().into_any_element(),
             Route::Title(id) => self.title_page(id, window, cx).into_any_element(),
             Route::Library => self.library_page(window, cx).into_any_element(),
-            Route::Catalog => self.catalog_page(window, cx).into_any_element(),
+            Route::Catalog => {
+                let page = self.catalog_page(window, cx);
+                if std::mem::take(&mut self.focus_search) {
+                    page.update(cx, |page, cx| page.focus_search(window, cx));
+                }
+                page.into_any_element()
+            }
             Route::Character(id) => {
                 if !self.people.contains_key(&route) {
                     let core = self.core.clone();
@@ -805,13 +791,7 @@ impl Root {
                 }
                 self.history_page.clone().unwrap().into_any_element()
             }
-            Route::Search => {
-                let page = self.search_page(window, cx);
-                if std::mem::take(&mut self.focus_search) {
-                    page.update(cx, |page, cx| page.focus(window, cx));
-                }
-                page.into_any_element()
-            }
+            Route::Search => self.catalog_page(window, cx).into_any_element(),
         }
     }
 }
@@ -969,7 +949,6 @@ impl Render for Root {
                 .library
                 .clone()
                 .and_then(|p| p.update(cx, |p, cx| p.pinned(window, cx))),
-            Route::Search => self.search.clone().and_then(|p| p.read(cx).pinned()),
             _ => None,
         };
         let root = root

@@ -35,6 +35,9 @@ pub struct BrowseFilter {
     pub durations: Vec<String>,
     pub studio: Option<i64>,
     pub order: Option<String>,
+    /// A name to look for: the catalog's search, with every filter applied to it.
+    #[serde(default)]
+    pub search: Option<String>,
 }
 
 fn known(values: &[String], allowed: &[&str]) -> Option<String> {
@@ -63,10 +66,14 @@ pub fn browse_variables(f: &BrowseFilter, page: u32) -> Value {
         .map(|g| g.to_string())
         .chain(f.exclude.iter().map(|g| format!("!{g}")))
         .collect();
+    let search = f.search.as_deref().map(str::trim).filter(|s| !s.is_empty());
+    let order = f.order.as_deref().filter(|o| ORDERS.contains(o));
     json!({
         "page": page.max(1),
         "limit": PAGE_SIZE,
-        "order": f.order.as_deref().filter(|o| ORDERS.contains(o)).unwrap_or("popularity"),
+        // A search without a chosen order comes best match first.
+        "order": order.or(search.is_none().then_some("popularity")),
+        "search": search,
         "kind": known(&f.kinds, &KINDS).unwrap_or_else(|| WATCHABLE.into()),
         "status": known(&f.statuses, &STATUSES),
         "season": f.season.as_deref().filter(|s| valid_season(s)),
@@ -111,12 +118,34 @@ mod tests {
     use serde_json::json;
 
     #[test]
+    fn a_search_keeps_the_filters_and_comes_best_match_first() {
+        let f = BrowseFilter {
+            search: Some("  фрирен ".into()),
+            score: Some(7),
+            ..Default::default()
+        };
+        let v = browse_variables(&f, 1);
+        assert_eq!(v["search"], "фрирен");
+        assert_eq!(v["score"], 7);
+        assert!(v["order"].is_null());
+        let sorted = BrowseFilter {
+            order: Some("ranked".into()),
+            ..f
+        };
+        assert_eq!(browse_variables(&sorted, 1)["order"], "ranked");
+        assert_eq!(
+            browse_variables(&BrowseFilter::default(), 1)["order"],
+            "popularity"
+        );
+    }
+
+    #[test]
     fn an_empty_filter_lists_popular_titles_without_music_videos_and_ads() {
         assert_eq!(
             browse_variables(&BrowseFilter::default(), 1),
             json!({
                 "page": 1, "limit": PAGE_SIZE, "order": "popularity", "kind": "!music,!pv,!cm",
-                "status": null, "season": null, "score": null, "genre": null, "studio": null,
+                "status": null, "season": null, "score": null, "genre": null, "studio": null, "search": null,
                 "rating": null, "duration": null
             })
         );
@@ -135,13 +164,14 @@ mod tests {
             durations: vec!["D".into()],
             studio: Some(569),
             order: Some("ranked".into()),
+            search: None,
         };
         assert_eq!(
             browse_variables(&f, 3),
             json!({
                 "page": 3, "limit": PAGE_SIZE, "order": "ranked", "kind": "tv,movie",
                 "status": "ongoing", "season": "2015_2020", "score": 8, "genre": "10,22,!9",
-                "studio": "569", "rating": "pg_13,r", "duration": "D"
+                "studio": "569", "rating": "pg_13,r", "duration": "D", "search": null
             })
         );
     }

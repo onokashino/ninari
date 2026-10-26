@@ -12,9 +12,9 @@ use crate::theme;
 
 pub const WIDTH: f32 = 84.;
 
-const TOP: [(Route, &str, &str); 5] = [
+// Search lives in the catalog.
+const TOP: [(Route, &str, &str); 4] = [
     (Route::Home, "home", "Главная"),
-    (Route::Search, "search", "Поиск"),
     (Route::Catalog, "compass", "Каталог"),
     (Route::Library, "library", "Библиотека"),
     (Route::Schedule, "calendar", "Расписание"),

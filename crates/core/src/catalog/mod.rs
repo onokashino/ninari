@@ -57,9 +57,10 @@ const SEASON_QUERY: &str = concat!(
 const BROWSE_QUERY: &str = concat!(
     "query($page: PositiveInt, $limit: PositiveInt, $order: OrderEnum, $kind: AnimeKindString,
   $status: AnimeStatusString, $season: SeasonString, $score: Int, $genre: String, $studio: String,
-  $rating: RatingString, $duration: DurationString) {
+  $rating: RatingString, $duration: DurationString, $search: String) {
   animes(page: $page, limit: $limit, order: $order, kind: $kind, status: $status, season: $season,
-    score: $score, genre: $genre, studio: $studio, rating: $rating, duration: $duration, censored: true) {
+    score: $score, genre: $genre, studio: $studio, rating: $rating, duration: $duration,
+    search: $search, censored: true) {
     ",
     anime_fields!(),
     "

@@ -26,10 +26,13 @@ use crate::core::Core;
 use crate::data::{Load, fetch};
 use crate::episode_grid::chip;
 use crate::lazy_grid::{self, GridTop, lazy_grid, row_height};
+use crate::library::swap_layout;
+use crate::library_page::Open;
 use crate::library_page::{content_width, grid_columns};
 use crate::nav::{PageEvent, Route};
 use crate::pinned::{self, Pin};
 use crate::popover::Menu;
+use crate::search_page::{SearchEvent, SearchPage};
 use crate::select::{SelectOption, select};
 use crate::theme::{self, Accent};
 
@@ -83,6 +86,10 @@ pub enum Seed {
 
 pub struct CatalogPage {
     core: Arc<Core>,
+    /// The search field, recent queries and the search by frame; the query goes into `filter`.
+    search: gpui::Entity<SearchPage>,
+    /// Nothing was found as typed, so the query in the other keyboard layout was: (typed, used).
+    swapped: Option<(String, String)>,
     grid_top: GridTop,
     pin: Pin,
     filter: BrowseFilter,
@@ -110,8 +117,25 @@ impl EventEmitter<PageEvent> for CatalogPage {}
 
 impl CatalogPage {
     pub fn new(core: Arc<Core>, cx: &mut Context<Self>) -> Self {
+        let search = cx.new(|cx| SearchPage::new(core.clone(), cx));
+        cx.subscribe(&search, |page, _, event: &SearchEvent, cx| match event {
+            SearchEvent::Query(q) => {
+                page.swapped = None;
+                let q = Some(q.clone()).filter(|q| !q.is_empty());
+                page.patch(cx, |f| f.search = q);
+            }
+            SearchEvent::Open(route) => cx.emit(PageEvent::Open(*route)),
+            SearchEvent::Play(request) => cx.emit(PageEvent::Play(request.clone())),
+        })
+        .detach();
+        cx.subscribe(&search, |_, _, Open(route), cx| {
+            cx.emit(PageEvent::Open(*route))
+        })
+        .detach();
         let page = Self {
             core,
+            search,
+            swapped: None,
             grid_top: GridTop::default(),
             pin: Pin::default(),
             filter: BrowseFilter::default(),
@@ -142,6 +166,16 @@ impl CatalogPage {
             },
         );
         page
+    }
+
+    /// The search field takes the keyboard (the catalog was opened to search).
+    pub fn focus_search(&self, window: &mut Window, cx: &mut Context<Self>) {
+        self.search.update(cx, |s, cx| s.focus(window, cx));
+    }
+
+    /// Puts `text` in the search and searches it at once.
+    pub fn set_query(&mut self, text: &str, cx: &mut Context<Self>) {
+        self.search.update(cx, |s, cx| s.set_query(text, cx));
     }
 
     /// A title's genre or studio link: the catalog of just that.
@@ -226,10 +260,22 @@ impl CatalogPage {
             cx,
             self.core.run(move |c| async move {
                 let list = c.catalog.browse(&filter, page).await?;
-                Ok(list
+                // Nothing as typed: perhaps it was typed with the other keyboard layout on.
+                let (list, used) = match filter.search.as_deref().map(|q| (q, swap_layout(q))) {
+                    Some((q, swapped)) if page == 1 && list.is_empty() && swapped != q => {
+                        let other = BrowseFilter {
+                            search: Some(swapped.clone()),
+                            ..filter.clone()
+                        };
+                        (c.catalog.browse(&other, 1).await?, Some(swapped))
+                    }
+                    _ => (list, None),
+                };
+                let cards = list
                     .into_iter()
                     .map(|a| feeds::card(&c.posters, a))
-                    .collect::<Vec<_>>())
+                    .collect::<Vec<_>>();
+                Ok((cards, used))
             }),
             move |p, got| {
                 if p.generation != generation {
@@ -237,7 +283,12 @@ impl CatalogPage {
                 }
                 p.loading = false;
                 match got {
-                    Load::Ready(list) => {
+                    Load::Ready((list, used)) => {
+                        if let Some(used) = used.filter(|_| !list.is_empty()) {
+                            // The next pages go on with what found something.
+                            let typed = p.filter.search.replace(used.clone()).unwrap_or_default();
+                            p.swapped = Some((typed, used));
+                        }
                         p.pages = page;
                         p.more = list.len() >= PAGE_SIZE as usize;
                         match &mut p.cards {
@@ -259,7 +310,7 @@ impl CatalogPage {
         );
     }
 
-    /// A random title by the filters, not one of the last few if it can help it.
+    /// Chips that turn the values of a list filter on and off.
     fn toggles(
         &self,
         key: &'static str,
@@ -633,8 +684,13 @@ impl CatalogPage {
                 }))
                 .child("Сбросить")
         });
-        let options: Vec<SelectOption> = ORDERS
-            .iter()
+        // A search comes best match first unless another order is picked.
+        let searching = self.filter.search.is_some();
+        let unset = if searching { "relevance" } else { "popularity" };
+        let options: Vec<SelectOption> = searching
+            .then_some(&("relevance", "Сначала совпадения"))
+            .into_iter()
+            .chain(ORDERS.iter())
             .map(|(value, label)| SelectOption {
                 value: value.to_string(),
                 label: label.to_string(),
@@ -645,12 +701,17 @@ impl CatalogPage {
         let order = select(
             "catalog-order",
             &self.order_menu,
-            self.filter.order.as_deref().unwrap_or("popularity"),
+            self.filter.order.as_deref().unwrap_or(unset),
             &options,
             accent,
             Rc::new(move |value, _, cx| {
                 page.update(cx, |page, cx| {
-                    page.patch(cx, |f| f.order = (value != "popularity").then_some(value))
+                    let unset = if page.filter.search.is_some() {
+                        "relevance"
+                    } else {
+                        "popularity"
+                    };
+                    page.patch(cx, |f| f.order = (value != unset).then_some(value))
                 })
                 .ok();
             }),
@@ -692,6 +753,7 @@ impl CatalogPage {
             .flex()
             .flex_col()
             .gap(px(gap))
+            .child(self.search.clone())
             .child(presets)
             .child(bar)
             .children(filters)
@@ -743,7 +805,15 @@ impl CatalogPage {
                 .into_any_element(),
             Load::Ready(list) if list.is_empty() => div()
                 .text_color(rgb(theme::TEXT_2))
-                .child("Ничего не нашлось. Убери часть фильтров или исключённых жанров.")
+                .child(match &self.filter.search {
+                    Some(q) => format!(
+                        "По запросу «{q}» ничего не нашлось. Попробуй другое написание, \
+                         оригинальное название или убери часть фильтров."
+                    ),
+                    None => {
+                        "Ничего не нашлось. Убери часть фильтров или исключённых жанров.".into()
+                    }
+                })
                 .into_any_element(),
             Load::Ready(list) => {
                 let (columns, _) = grid_columns(content_width(window));
@@ -752,10 +822,13 @@ impl CatalogPage {
                 let cards = lazy_grid(&top, list.len(), columns, row_height(card_w), screen, |i| {
                     let card = &list[i];
                     let id = card.anime.id;
-                    let open =
-                        Box::new(cx.listener(move |_, _, _, cx| {
-                            cx.emit(PageEvent::Open(Route::Title(id)))
-                        }));
+                    let open = Box::new(cx.listener(move |page, _, _, cx| {
+                        // Opening a result is what makes a query worth remembering.
+                        if page.filter.search.is_some() {
+                            page.search.update(cx, |s, cx| s.remember_current(cx));
+                        }
+                        cx.emit(PageEvent::Open(Route::Title(id)))
+                    }));
                     let text = CardText {
                         note: None,
                         fraction: None,
@@ -903,6 +976,16 @@ impl Render for CatalogPage {
             .pb(px(72.))
             .child(head)
             .child(div().mt(px(-12.)).child(self.pin.slot(controls)))
+            .children(self.search.update(cx, |s, cx| s.frame_results(cx)))
+            .children(self.swapped.clone().map(|(typed, used)| {
+                div()
+                    .text_size(px(13.))
+                    .text_color(rgb(theme::TEXT_3))
+                    .child(format!(
+                        "По «{typed}» ничего нет, показаны результаты для «{used}»."
+                    ))
+                    .into_any_element()
+            }))
             .child(grid)
     }
 }

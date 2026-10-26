@@ -17,14 +17,11 @@ use serde_json::json;
 
 use crate::assets::icon;
 use crate::button::{Size, Variant, button};
-use crate::cards::{CardText, poster_card_sized};
 use crate::core::Core;
 use crate::data::{Load, fetch, title};
 use crate::episode_grid::chip;
-use crate::library::swap_layout;
-use crate::library_page::{Open, content_width, grid_columns, more_link};
+use crate::library_page::{Open, more_link};
 use crate::nav::Route;
-use crate::pinned::{self, Pin};
 use crate::player::{Request, clock};
 use crate::posters::poster;
 use crate::text_input::{InputEvent, TextInput};
@@ -75,6 +72,8 @@ pub fn frame_jpeg(bytes: &[u8]) -> anyhow::Result<Vec<u8>> {
 pub enum SearchEvent {
     Open(Route),
     Play(Request),
+    /// The query a moment after typing stops: the catalog searches with its filters.
+    Query(String),
 }
 
 pub struct FrameHit {
@@ -89,15 +88,11 @@ pub struct FrameHit {
 pub struct SearchPage {
     core: Arc<Core>,
     input: Entity<TextInput>,
-    pin: Pin,
     focus: FocusHandle,
-    /// The query being shown, the input's text a moment after typing stops.
+    /// The query being searched, the input's text a moment after typing stops.
     query: String,
     debounce: Option<Task<()>>,
-    /// What was found and for which query (the other layout's, when only that found anything).
-    results: Load<(Vec<AnimeCard>, String)>,
     history: Vec<String>,
-    popular: Load<Vec<AnimeCard>>,
     frame: Option<Load<Vec<FrameHit>>>,
 }
 
@@ -129,13 +124,10 @@ impl SearchPage {
         let page = Self {
             core,
             input,
-            pin: Pin::default(),
             focus: cx.focus_handle(),
             query: String::new(),
             debounce: None,
-            results: Load::Pending,
             history: Vec::new(),
-            popular: Load::Pending,
             frame: None,
         };
         let db = page.core.db.clone();
@@ -154,17 +146,6 @@ impl SearchPage {
                     page.history = h;
                 }
             },
-        );
-        fetch(
-            cx,
-            page.core.run(|c| async move {
-                let list = c.catalog.season_top(20).await?;
-                Ok(list
-                    .into_iter()
-                    .map(|a| feeds::card(&c.posters, a))
-                    .collect())
-            }),
-            |page, popular| page.popular = popular,
         );
         page
     }
@@ -188,33 +169,16 @@ impl SearchPage {
             return;
         }
         self.query = query.clone();
-        if query.is_empty() {
-            cx.notify();
-            return;
-        }
-        self.results = Load::Pending;
-        let swapped = swap_layout(&query);
-        fetch(
-            cx,
-            self.core.run(move |c| async move {
-                let found = c.catalog.search(&query, 30).await?;
-                // Nothing: perhaps it was typed with the other keyboard layout on.
-                let (found, used) = if found.is_empty() && swapped != query {
-                    (c.catalog.search(&swapped, 30).await?, swapped)
-                } else {
-                    (found, query)
-                };
-                Ok((
-                    found
-                        .into_iter()
-                        .map(|a| feeds::card(&c.posters, a))
-                        .collect(),
-                    used,
-                ))
-            }),
-            |page, results| page.results = results,
-        );
+        cx.emit(SearchEvent::Query(query));
         cx.notify();
+    }
+
+    /// Opening a result is what makes a query worth remembering.
+    pub fn remember_current(&mut self, cx: &mut Context<Self>) {
+        if !self.query.is_empty() {
+            let next = remember(&self.history, &self.query);
+            self.save_history(next, cx);
+        }
     }
 
     fn save_history(&mut self, history: Vec<String>, cx: &mut Context<Self>) {
@@ -297,64 +261,11 @@ impl SearchPage {
         Box::new(cx.listener(move |_, _, _, cx| cx.emit(Open(route))))
     }
 
-    fn grid(
-        &self,
-        list: &[AnimeCard],
-        name: &'static str,
-        remember_query: Option<String>,
-        window: &mut Window,
-        cx: &mut Context<Self>,
-    ) -> AnyElement {
-        let accent = Accent::colors(cx).0;
-        let (_, card_w) = grid_columns(content_width(window));
-        let cards: Vec<AnyElement> = list
-            .iter()
-            .enumerate()
-            .map(|(i, c)| {
-                let id = c.anime.id;
-                let query = remember_query.clone();
-                // Opening a result is what makes a query worth remembering.
-                let open: crate::OnClick = Box::new(cx.listener(move |page, _, _, cx| {
-                    if let Some(q) = &query {
-                        let next = remember(&page.history, q);
-                        page.save_history(next, cx);
-                    }
-                    cx.emit(Open(Route::Title(id)));
-                }));
-                let text = CardText {
-                    note: None,
-                    fraction: None,
-                    badge: None,
-                };
-                poster_card_sized(c, name, i, text, card_w, accent, open, window, cx)
-                    .into_any_element()
-            })
-            .collect();
-        div()
-            .flex()
-            .flex_wrap()
-            .gap_x(px(24.))
-            .gap_y(px(32.))
-            .children(cards)
-            .into_any_element()
-    }
-
-    /// The search field: in the page, or pinned along the top once the results scroll past it.
-    fn field(&self) -> AnyElement {
-        div()
-            .max_w(px(560.))
-            .child(self.input.clone())
-            .into_any_element()
-    }
-
-    pub fn pinned(&self) -> Option<AnyElement> {
-        self.pin.pinned().then(|| pinned::band(self.field()))
-    }
-
-    fn frame_section(&self, cx: &mut Context<Self>) -> AnyElement {
+    /// "Найти по кадру" and how else to give a frame.
+    fn frame_tools(&self, cx: &mut Context<Self>) -> gpui::Div {
         let accent = Accent::colors(cx).0;
         let busy = matches!(self.frame, Some(Load::Pending));
-        let tools = div()
+        div()
             .flex()
             .flex_wrap()
             .items_center()
@@ -381,8 +292,13 @@ impl SearchPage {
                     .text_color(rgb(theme::TEXT_3))
                     .text_size(px(13.))
                     .child("или вставь скриншот через Ctrl+V, или перетащи его сюда"),
-            );
-        let result: Option<AnyElement> = match &self.frame {
+            )
+    }
+
+    /// What a frame found, for the catalog to show under its controls.
+    pub fn frame_results(&self, cx: &mut Context<Self>) -> Option<AnyElement> {
+        let accent = Accent::colors(cx).0;
+        match &self.frame {
             Some(Load::Failed(e)) => Some(
                 div()
                     .text_color(rgb(theme::DANGER))
@@ -428,14 +344,7 @@ impl SearchPage {
                     .into_any_element(),
             ),
             _ => None,
-        };
-        div()
-            .flex()
-            .flex_col()
-            .gap(px(12.))
-            .child(tools)
-            .children(result)
-            .into_any_element()
+        }
     }
 
     fn frame_hit(&self, h: &FrameHit, accent: gpui::Hsla, cx: &mut Context<Self>) -> AnyElement {
@@ -524,168 +433,69 @@ impl SearchPage {
 }
 
 impl Render for SearchPage {
-    fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+    fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let accent = Accent::colors(cx).0;
-        let mut sections: Vec<AnyElement> = Vec::new();
-        if self.query.is_empty() {
-            if !self.history.is_empty() {
-                let chips = self.history.iter().map(|h| {
-                    let (query, forget) = (h.clone(), h.clone());
-                    div()
-                        .relative()
-                        .flex()
-                        .child(
-                            chip(gpui::SharedString::from(format!("q-{h}")), false, accent)
-                                .pr(px(32.))
-                                .on_click(
-                                    cx.listener(move |page, _, _, cx| page.set_query(&query, cx)),
-                                )
-                                .child(h.clone()),
-                        )
-                        .child(
-                            div()
-                                .id(gpui::SharedString::from(format!("forget-{h}")))
-                                .cursor_pointer()
-                                .absolute()
-                                .right(px(6.))
-                                .top(px(7.))
-                                .size(px(22.))
-                                .rounded_full()
-                                .flex()
-                                .items_center()
-                                .justify_center()
-                                .hover(|s| s.bg(theme::glass_strong()))
-                                .on_click(cx.listener(move |page, _, _, cx| {
-                                    let next: Vec<String> = page
-                                        .history
-                                        .iter()
-                                        .filter(|x| **x != forget)
-                                        .cloned()
-                                        .collect();
-                                    page.save_history(next, cx);
-                                }))
-                                .child(icon("close", 14.).text_color(rgb(theme::TEXT_3))),
-                        )
-                });
-                sections.push(
-                    div()
-                        .flex()
-                        .flex_col()
-                        .gap(px(16.))
-                        .child(
-                            div()
-                                .flex()
-                                .items_baseline()
-                                .justify_between()
-                                .child(
-                                    div()
-                                        .text_size(px(18.))
-                                        .font_weight(FontWeight::EXTRA_BOLD)
-                                        .child("Недавние запросы"),
-                                )
-                                .child(more_link(
-                                    "clear-history",
-                                    "Очистить",
-                                    accent,
-                                    Box::new(cx.listener(|page, _, _, cx| {
-                                        page.save_history(Vec::new(), cx)
-                                    })),
-                                )),
-                        )
-                        .child(div().flex().flex_wrap().gap(px(8.)).children(chips))
-                        .into_any_element(),
-                );
-            }
-            if let Load::Ready(list) = &self.popular
-                && !list.is_empty()
-            {
-                let list: Vec<AnimeCard> = list.iter().take(12).cloned().collect();
-                let grid = self.grid(&list, "popular", None, window, cx);
-                sections.push(
-                    div()
-                        .flex()
-                        .flex_col()
-                        .gap(px(16.))
-                        .child(
-                            div()
-                                .text_size(px(18.))
-                                .font_weight(FontWeight::EXTRA_BOLD)
-                                .child("Популярное сейчас"),
-                        )
-                        .child(grid)
-                        .into_any_element(),
-                );
-            }
-        } else {
-            let q = self.query.clone();
-            match &self.results {
-                Load::Pending => {
-                    let (_, card_w) = grid_columns(content_width(window));
-                    sections.push(
+        let recent = (self.query.is_empty() && !self.history.is_empty()).then(|| {
+            let chips = self.history.iter().map(|h| {
+                let (query, forget) = (h.clone(), h.clone());
+                div()
+                    .relative()
+                    .flex()
+                    .child(
+                        chip(gpui::SharedString::from(format!("q-{h}")), false, accent)
+                            .pr(px(32.))
+                            .on_click(cx.listener(move |page, _, _, cx| page.set_query(&query, cx)))
+                            .child(h.clone()),
+                    )
+                    .child(
                         div()
+                            .id(gpui::SharedString::from(format!("forget-{h}")))
+                            .cursor_pointer()
+                            .absolute()
+                            .right(px(6.))
+                            .top(px(7.))
+                            .size(px(22.))
+                            .rounded_full()
                             .flex()
-                            .flex_wrap()
-                            .gap_x(px(24.))
-                            .gap_y(px(32.))
-                            .children((0..12).map(|_| {
-                                div()
-                                    .w(px(card_w))
-                                    .h(px(card_w * 1.5))
-                                    .rounded(theme::R_M)
-                                    .bg(theme::glass())
+                            .items_center()
+                            .justify_center()
+                            .hover(|s| s.bg(theme::glass_strong()))
+                            .on_click(cx.listener(move |page, _, _, cx| {
+                                let next: Vec<String> = page
+                                    .history
+                                    .iter()
+                                    .filter(|x| **x != forget)
+                                    .cloned()
+                                    .collect();
+                                page.save_history(next, cx);
                             }))
-                            .into_any_element(),
-                    );
-                }
-                Load::Failed(e) => sections.push(
+                            .child(icon("close", 14.).text_color(rgb(theme::TEXT_3))),
+                    )
+            });
+            div()
+                .flex()
+                .flex_wrap()
+                .items_center()
+                .gap(px(8.))
+                .child(
                     div()
-                        .flex()
-                        .flex_col()
-                        .items_start()
-                        .gap(px(16.))
-                        .child(
-                            div()
-                                .text_color(rgb(theme::DANGER))
-                                .child(format!("Каталог не ответил: {e}")),
-                        )
-                        .child(
-                            button("retry-search", "Повторить", Some("retry"), Variant::Glass, Size::M, accent)
-                                .on_click(cx.listener(|page, _, _, cx| {
-                                    let q = std::mem::take(&mut page.query);
-                                    page.search(q, cx);
-                                })),
-                        )
-                        .into_any_element(),
-                ),
-                Load::Ready((list, _)) if list.is_empty() => sections.push(
-                    div()
-                        .text_color(rgb(theme::TEXT_2))
-                        .child(format!(
-                            "По запросу «{q}» ничего не нашлось. Попробуй другое написание или оригинальное название."
-                        ))
-                        .into_any_element(),
-                ),
-                Load::Ready((list, used)) => {
-                    let (list, used) = (list.clone(), used.clone());
-                    if used != q {
-                        sections.push(
-                            div()
-                                .text_color(rgb(theme::TEXT_2))
-                                .child(format!("По «{q}» ничего нет, показаны результаты для «{used}»."))
-                                .into_any_element(),
-                        );
-                    }
-                    sections.push(self.grid(&list, "results", Some(used), window, cx));
-                }
-            }
-        }
-
-        let frame = self.frame_section(cx);
-        let field = (!self.pin.pinned()).then(|| self.field());
+                        .mr(px(4.))
+                        .text_size(px(13.))
+                        .text_color(rgb(theme::TEXT_3))
+                        .child("Недавние"),
+                )
+                .children(chips)
+                .child(more_link(
+                    "clear-history",
+                    "Очистить",
+                    accent,
+                    Box::new(cx.listener(|page, _, _, cx| page.save_history(Vec::new(), cx))),
+                ))
+        });
         div()
-            .id("search-page")
-            // A click on the page gives it the keys, so Ctrl+V with a picture searches by it
-            // wherever it is pressed, as the hint says; the field takes them while it has focus.
+            .id("search")
+            // A click on the search gives it the keys, so Ctrl+V with a picture searches by it;
+            // the field takes them while it has focus.
             .track_focus(&self.focus)
             .on_key_down(cx.listener(|page, e: &KeyDownEvent, window, cx| {
                 let k = &e.keystroke;
@@ -713,19 +523,23 @@ impl Render for SearchPage {
             }))
             .flex()
             .flex_col()
-            .gap(px(32.))
-            .px(px(48.))
-            .pt(px(50.))
-            .pb(px(72.))
+            .gap(px(12.))
             .child(
                 div()
-                    .text_size(px(34.))
-                    .font_weight(FontWeight::EXTRA_BOLD)
-                    .child("Поиск"),
+                    .flex()
+                    .flex_wrap()
+                    .items_center()
+                    .gap(px(12.))
+                    .child(
+                        div()
+                            .flex_1()
+                            .min_w(px(260.))
+                            .max_w(px(560.))
+                            .child(self.input.clone()),
+                    )
+                    .child(self.frame_tools(cx)),
             )
-            .child(self.pin.slot(field))
-            .child(frame)
-            .children(sections)
+            .children(recent)
     }
 }
 
