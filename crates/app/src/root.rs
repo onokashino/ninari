@@ -30,6 +30,7 @@ use crate::nav::{Back, Forward, History, Route};
 use crate::onboarding::{Done, ONBOARDED_SETTING, Onboarding};
 use crate::palette::{CommandPalette, PaletteEvent};
 use crate::people_page::{CharacterPage, PersonPage};
+use crate::pinned;
 use crate::playback::HostMsg;
 use crate::player::{Closed, Player, Request};
 use crate::popover;
@@ -67,6 +68,9 @@ pub struct Root {
     people: HashMap<Route, AnyView>,
     library: Option<Entity<LibraryPage>>,
     catalog: Option<Entity<CatalogPage>>,
+    /// The pinned controls of the library and the catalog, drawn as cached views.
+    bands: [Option<Entity<pinned::Band>>; 2],
+    frames: crate::frames::Frames,
     schedule: Option<Entity<SchedulePage>>,
     history_page: Option<Entity<HistoryPage>>,
     stats: Option<Entity<StatsPage>>,
@@ -141,6 +145,8 @@ impl Root {
             people: HashMap::new(),
             library: None,
             catalog: None,
+            bands: [None, None],
+            frames: crate::frames::Frames::from_env(),
             schedule: None,
             history_page: None,
             stats: None,
@@ -819,6 +825,7 @@ fn device_size(window: &Window) -> (i32, i32) {
 
 impl Render for Root {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        self.frames.begin();
         popover::begin_frame(cx);
         let route = self.history.current().route;
         let hero = match route {
@@ -951,16 +958,49 @@ impl Render for Root {
         };
         // The page's controls along the top once it has scrolled past them.
         let pinned = match route {
-            Route::Catalog => self
-                .catalog
-                .clone()
-                .and_then(|p| p.update(cx, |p, cx| p.pinned(window, cx))),
-            Route::Library => self
-                .library
-                .clone()
-                .and_then(|p| p.update(cx, |p, cx| p.pinned(window, cx))),
+            Route::Catalog => self.catalog.clone().and_then(|page| {
+                page.read(cx).is_pinned().then(|| {
+                    self.bands[0]
+                        .get_or_insert_with(|| {
+                            cx.new(|cx| {
+                                pinned::Band::new(
+                                    &page,
+                                    CatalogPage::pinned,
+                                    CatalogPage::controls_key,
+                                    cx,
+                                )
+                            })
+                        })
+                        .clone()
+                })
+            }),
+            Route::Library => self.library.clone().and_then(|page| {
+                page.read(cx).is_pinned().then(|| {
+                    self.bands[1]
+                        .get_or_insert_with(|| {
+                            cx.new(|cx| {
+                                pinned::Band::new(
+                                    &page,
+                                    LibraryPage::pinned,
+                                    LibraryPage::controls_key,
+                                    cx,
+                                )
+                            })
+                        })
+                        .clone()
+                })
+            }),
             _ => None,
-        };
+        }
+        .map(|band| {
+            let mut style = gpui::StyleRefinement::default();
+            style.position = Some(gpui::Position::Absolute);
+            style.inset.top = Some(px(0.).into());
+            style.inset.left = Some(px(0.).into());
+            style.size.width = Some(relative(1.).into());
+            style.size.height = Some(relative(1.).into());
+            AnyView::from(band).cached(style)
+        });
         let root = root
             .relative()
             .flex()
@@ -989,7 +1029,7 @@ impl Render for Root {
                             .track_scroll(&scroll)
                             .child(page),
                     )
-                    .child(self.glide.catcher(scroll.clone()))
+                    .child(self.glide.catcher(scroll.clone(), cx.entity_id()))
                     .child(self.autoscroll.layer())
                     .children(pinned)
                     .children(random_bar),
@@ -1000,7 +1040,8 @@ impl Render for Root {
             .children(self.palette.clone())
             .children(self.offer.clone())
             .children(self.update.clone().map(|info| update_banner(info, cx)))
-            .children(self.onboarding.clone());
+            .children(self.onboarding.clone())
+            .children(self.frames.end());
         image_cache(self.images.clone()).size_full().child(root)
     }
 }

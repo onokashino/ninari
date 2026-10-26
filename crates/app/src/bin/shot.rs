@@ -201,6 +201,43 @@ fn step(cx: &mut HeadlessAppContext, window: AnyWindowHandle, step: &str) -> any
                 times[times.len() - 1]
             );
         }
+        // Frames of wheel scrolling as the app draws them: a notch, then a frame drawn with only
+        // what changed (no refresh, so cached views are reused), down for 20 frames and back up.
+        "scrollbench" => {
+            let p = at(args)?;
+            let mut times = Vec::new();
+            for i in 0..f32::from(p[2]) as usize {
+                let dy = if (i / 20) % 2 == 0 { -40. } else { 40. };
+                cx.update_window(window, |_, window, cx| {
+                    window.dispatch_event(
+                        PlatformInput::Scroll(ScrollEvent {
+                            position: point(p[0], p[1]),
+                            delta: ScrollDelta::Pixels(point(px(0.), px(dy))),
+                            modifiers: Modifiers::default(),
+                            touch_phase: TouchPhase::Moved,
+                            source: ScrollSource::Pointer,
+                        }),
+                        cx,
+                    );
+                })?;
+                cx.run_until_parked();
+                std::thread::sleep(Duration::from_millis(7));
+                let took = cx.update_window(window, |_, window, cx| {
+                    let start = std::time::Instant::now();
+                    window.draw(cx).clear(cx);
+                    start.elapsed()
+                })?;
+                times.push(took.as_secs_f64() * 1000.);
+                cx.run_until_parked();
+            }
+            times.sort_by(f64::total_cmp);
+            let avg = times.iter().sum::<f64>() / times.len() as f64;
+            println!(
+                "scroll frame: avg {avg:.2} ms, median {:.2} ms, max {:.2} ms",
+                times[times.len() / 2],
+                times[times.len() - 1]
+            );
+        }
         "snap" => {
             settle(cx, window, 16)?;
             cx.capture_screenshot(window)?.save(args)?;

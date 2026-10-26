@@ -44,6 +44,8 @@ pub struct LibraryPage {
     query: Entity<TextInput>,
     filter: Filter,
     filters_open: bool,
+    /// Times the filters were opened: each opening is a new entrance.
+    opened: u64,
     lists: HashMap<&'static str, Load<Vec<LibraryItem>>>,
 }
 
@@ -73,6 +75,7 @@ impl LibraryPage {
             query,
             filter: Filter::default(),
             filters_open: false,
+            opened: 0,
             lists: HashMap::new(),
         };
         page.load(cx);
@@ -205,7 +208,16 @@ impl LibraryPage {
             )
             .child(self.filters_bar(accent, cx))
             .child(div().ml_auto().child(order));
-        let filters = self.filters_open.then(|| self.filters(accent, cx));
+        let filters = self.filters_open.then(|| {
+            crate::motion::rise(
+                self.filters(accent, cx),
+                ("filters", self.opened),
+                0,
+                200,
+                0,
+                -10.,
+            )
+        });
         div()
             .flex()
             .flex_col()
@@ -221,6 +233,7 @@ impl LibraryPage {
         let toggle = filters_toggle(self.filters_open, count, accent).on_click(cx.listener(
             |page, _, _, cx| {
                 page.filters_open = !page.filters_open;
+                page.opened += 1;
                 cx.notify();
             },
         ));
@@ -357,6 +370,23 @@ impl LibraryPage {
                 d.child(row("Жанры", genre_chips))
             })
             .into_any_element()
+    }
+
+    /// What the controls show, for the pinned band to know when to draw them again.
+    pub fn controls_key(&self) -> String {
+        let list = match self.lists.get(self.status) {
+            Some(Load::Ready(list)) => list.len() as i64,
+            Some(Load::Failed(_)) => -2,
+            _ => -1,
+        };
+        format!(
+            "{}|{:?}|{:?}|{}|{list}",
+            self.status, self.sort, self.filter, self.filters_open
+        )
+    }
+
+    pub fn is_pinned(&self) -> bool {
+        self.pin.pinned()
     }
 
     /// The controls pinned along the top once the page has scrolled past them.

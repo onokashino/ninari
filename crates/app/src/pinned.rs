@@ -7,8 +7,8 @@ use std::cell::Cell;
 use std::rc::Rc;
 
 use gpui::{
-    AnyElement, BoxShadow, IntoElement, ParentElement, Styled, canvas, div, point, prelude::*, px,
-    rgba,
+    AnyElement, App, BoxShadow, Context, Entity, IntoElement, ParentElement, Render, Styled,
+    Subscription, Window, canvas, div, point, prelude::*, px, rgba,
 };
 
 use crate::theme;
@@ -87,4 +87,44 @@ pub fn band(controls: AnyElement, window: &gpui::Window) -> AnyElement {
         }])
         .child(controls)
         .into_any_element()
+}
+
+/// A page's pinned controls as a view of their own, which Root draws cached: the page scrolling
+/// under them does not lay them out and paint them again (open filters are a few hundred chips).
+/// The page notifies on every frame a card animates, so the band is drawn anew only when what
+/// the controls show, `key`, changed; a text field or a menu among them wakes it by itself.
+pub struct Band {
+    controls: Box<dyn Fn(&mut Window, &mut App) -> Option<AnyElement>>,
+    _page: Subscription,
+}
+
+impl Band {
+    pub fn new<V: 'static>(
+        page: &Entity<V>,
+        controls: fn(&mut V, &mut Window, &mut Context<V>) -> Option<AnyElement>,
+        key: fn(&V) -> String,
+        cx: &mut Context<Self>,
+    ) -> Self {
+        let mut last = key(page.read(cx));
+        let observed = cx.observe(page, move |_, page, cx| {
+            let now = key(page.read(cx));
+            if now != last {
+                last = now;
+                cx.notify();
+            }
+        });
+        let page = page.clone();
+        Self {
+            controls: Box::new(move |window, cx| {
+                page.update(cx, |page, cx| controls(page, window, cx))
+            }),
+            _page: observed,
+        }
+    }
+}
+
+impl Render for Band {
+    fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        div().size_full().children((self.controls)(window, cx))
+    }
 }

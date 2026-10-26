@@ -59,7 +59,9 @@ impl Glide {
 
     /// A layer over the page that takes the mouse wheel for `scroll`: put it last among the
     /// page's siblings, the size of the page.
-    pub fn catcher(&self, scroll: ScrollHandle) -> impl IntoElement {
+    /// `view` is the one drawing the page: the wheel wakes it alone. A refresh of the whole window
+    /// would throw away every cached view (the pinned controls) on each notch.
+    pub fn catcher(&self, scroll: ScrollHandle, view: gpui::EntityId) -> impl IntoElement {
         let glide = self.clone();
         canvas(
             |bounds, window, _| window.insert_hitbox(bounds, HitboxBehavior::Normal),
@@ -85,7 +87,7 @@ impl Glide {
                     };
                     glide.target.set(Some((from + dy).clamp(-max, px(0.))));
                     cx.stop_propagation();
-                    window.refresh();
+                    cx.notify(view);
                 });
             },
         )

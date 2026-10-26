@@ -97,6 +97,8 @@ pub struct CatalogPage {
     /// The season on now, for the collection and the season chip.
     season: String,
     filters_open: bool,
+    /// Times the filters were opened: each opening is a new entrance.
+    opened: u64,
     all_themes: bool,
     genres: Load<Vec<Genre>>,
     /// A genre a title's link asked for, found by name once the list is in.
@@ -142,6 +144,7 @@ impl CatalogPage {
             studio_name: None,
             season: season_at(now()),
             filters_open: false,
+            opened: 0,
             all_themes: false,
             genres: Load::Pending,
             wanted_genre: None,
@@ -614,6 +617,7 @@ impl CatalogPage {
         let open = self.filters_open;
         let toggle = filters_toggle(open, count, accent).on_click(cx.listener(|page, _, _, cx| {
             page.filters_open = !page.filters_open;
+            page.opened += 1;
             cx.notify();
         }));
         let reset = (count > 0).then(|| {
@@ -703,7 +707,16 @@ impl CatalogPage {
                         .child(p.label)
                 }));
         let bar = self.bar(accent, window, cx);
-        let filters = self.filters_open.then(|| self.filters(accent, window, cx));
+        let filters = self.filters_open.then(|| {
+            crate::motion::rise(
+                self.filters(accent, window, cx),
+                ("filters", self.opened),
+                0,
+                200,
+                0,
+                -10.,
+            )
+        });
         div()
             .flex()
             .flex_col()
@@ -713,6 +726,28 @@ impl CatalogPage {
             .child(bar)
             .children(filters)
             .into_any_element()
+    }
+
+    /// What the controls show, for the pinned band to know when to draw them again.
+    pub fn controls_key(&self) -> String {
+        let genres = match &self.genres {
+            Load::Ready(list) => list.len() as i64,
+            Load::Pending => -1,
+            Load::Failed(_) => -2,
+        };
+        format!(
+            "{:?}|{:?}|{}|{}|{}|{genres}|{:?}",
+            self.filter,
+            self.studio_name,
+            self.season,
+            self.filters_open,
+            self.all_themes,
+            self.swapped
+        )
+    }
+
+    pub fn is_pinned(&self) -> bool {
+        self.pin.pinned()
     }
 
     /// The controls pinned along the top once the page has scrolled past them.

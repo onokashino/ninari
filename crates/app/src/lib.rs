@@ -15,6 +15,7 @@ pub mod episode_grid;
 pub mod episodes;
 pub mod facts;
 pub mod format;
+pub mod frames;
 pub mod franchise;
 pub mod history_page;
 pub mod home;
