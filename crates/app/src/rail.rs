@@ -13,11 +13,13 @@ use crate::theme;
 pub const WIDTH: f32 = 84.;
 
 // Search lives in the catalog.
-const TOP: [(Route, &str, &str); 4] = [
+const TOP: [(Route, &str, &str); 6] = [
     (Route::Home, "home", "Главная"),
     (Route::Catalog, "compass", "Каталог"),
     (Route::Library, "library", "Библиотека"),
     (Route::Schedule, "calendar", "Расписание"),
+    (Route::History, "history", "История"),
+    (Route::Stats, "stats", "Статистика"),
 ];
 
 pub fn label(route: Route) -> &'static str {

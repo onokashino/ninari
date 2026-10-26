@@ -4,17 +4,19 @@
 use std::sync::Arc;
 
 use gpui::{
-    AnyElement, Context, Div, FontWeight, Hsla, IntoElement, Render, Window, div,
+    AnyElement, Context, Div, EventEmitter, FontWeight, Hsla, IntoElement, Render, Window, div,
     linear_color_stop, linear_gradient, prelude::*, px, relative, rgb,
 };
-use ninari_core::feeds;
+use ninari_core::feeds::{self, AnimeCard};
 use ninari_core::stats::Stats;
 
+use crate::cards::poster_frame;
 use crate::clock::{now, utc_offset};
 use crate::core::Core;
-use crate::data::{Load, fetch};
+use crate::data::{Load, fetch, title};
 use crate::format::{library_status, plural};
 use crate::library_page::content_width;
+use crate::nav::{PageEvent, Route};
 use crate::theme::{self, Accent};
 
 /// Watch time as a number and its unit: minutes under an hour, hours with a decimal under ten.
@@ -73,13 +75,18 @@ pub fn shares(parts: &[(String, i64)]) -> Vec<(&str, i64, f32)> {
 pub struct StatsPage {
     core: Arc<Core>,
     stats: Load<Stats>,
+    /// The titles with the most episodes watched, with their cards for the posters.
+    top: Vec<(AnimeCard, i64)>,
 }
+
+impl EventEmitter<PageEvent> for StatsPage {}
 
 impl StatsPage {
     pub fn new(core: Arc<Core>, cx: &mut Context<Self>) -> Self {
         let mut page = Self {
             core,
             stats: Load::Pending,
+            top: Vec::new(),
         };
         page.reload(cx);
         page
@@ -90,9 +97,28 @@ impl StatsPage {
         let offset = utc_offset(now()) / 60;
         fetch(
             cx,
-            self.core
-                .run(move |c| async move { feeds::stats(&c.library, &c.catalog, offset) }),
-            |page, stats| page.stats = stats,
+            self.core.run(move |c| async move {
+                let stats = feeds::stats(&c.library, &c.catalog, offset)?;
+                let ids: Vec<i64> = stats.top.iter().map(|(id, _)| *id).collect();
+                let cards = c.catalog.cached_many(&ids)?;
+                let top = stats
+                    .top
+                    .iter()
+                    .filter_map(|(id, n)| {
+                        let a = cards.iter().find(|a| a.id == *id)?.clone();
+                        Some((feeds::card(&c.posters, a), *n))
+                    })
+                    .collect();
+                Ok((stats, top))
+            }),
+            |page, got| match got {
+                Load::Ready((stats, top)) => {
+                    page.stats = Load::Ready(stats);
+                    page.top = top;
+                }
+                Load::Failed(e) => page.stats = Load::Failed(e),
+                Load::Pending => {}
+            },
         );
     }
 }
@@ -390,7 +416,17 @@ impl Render for StatsPage {
                 )
         });
 
+        let activity = self.activity(d, accent);
+        let top = self.top_titles(accent, cx);
         page.child(div().flex().flex_wrap().gap(px(16.)).children(figures))
+            .child(
+                div()
+                    .flex()
+                    .when(narrow, |d| d.flex_col())
+                    .gap(px(16.))
+                    .child(activity)
+                    .children(top),
+            )
             .child(months)
             .when(!lists.is_empty(), |p| {
                 p.child(
@@ -402,6 +438,85 @@ impl Render for StatsPage {
                 )
             })
             .children(library)
+    }
+}
+
+impl StatsPage {
+    /// Half a year of days as a grid of weeks, each day as bright as the episodes watched on it.
+    fn activity(&self, d: &Stats, accent: gpui::Hsla) -> Div {
+        const CELL: f32 = 13.;
+        let max = d.activity.iter().copied().max().unwrap_or(0).max(1);
+        let days_on = d.activity.iter().filter(|&&n| n > 0).count() as i64;
+        let weeks = d.activity.chunks(7).map(|week| {
+            div()
+                .flex()
+                .flex_col()
+                .gap(px(3.))
+                .children(week.iter().map(|&n| {
+                    let cell = div().size(px(CELL)).rounded(px(3.));
+                    if n == 0 {
+                        cell.bg(theme::glass_strong())
+                    } else {
+                        cell.bg(accent.opacity(0.3 + 0.7 * (n as f32 / max as f32)))
+                    }
+                }))
+        });
+        card()
+            .flex_1()
+            .child(heading("Активность за полгода"))
+            .child(div().flex().gap(px(3.)).children(weeks))
+            .child(
+                div()
+                    .text_size(px(13.))
+                    .text_color(rgb(theme::TEXT_3))
+                    .child(format!(
+                        "{days_on} {} с просмотром, чем ярче день, тем больше серий",
+                        plural(days_on, "день", "дня", "дней")
+                    )),
+            )
+    }
+
+    /// The titles watched the most, as posters.
+    fn top_titles(&self, accent: gpui::Hsla, cx: &mut Context<Self>) -> Option<Div> {
+        if self.top.is_empty() {
+            return None;
+        }
+        let items = self.top.iter().map(|(c, n)| {
+            let id = c.anime.id;
+            div()
+                .id(("stats-top", id as u64))
+                .group("stats-top")
+                .cursor_pointer()
+                .w(px(96.))
+                .flex()
+                .flex_col()
+                .gap(px(6.))
+                .on_click(
+                    cx.listener(move |_, _, _, cx| cx.emit(PageEvent::Open(Route::Title(id)))),
+                )
+                .child(poster_frame(c, px(96.), theme::R_M, cx))
+                .child(
+                    div()
+                        .text_size(px(12.))
+                        .font_weight(FontWeight::BOLD)
+                        .line_clamp(2)
+                        .text_ellipsis()
+                        .group_hover("stats-top", move |s| s.text_color(accent))
+                        .child(title(&c.anime)),
+                )
+                .child(
+                    div()
+                        .text_size(px(12.))
+                        .text_color(rgb(theme::TEXT_3))
+                        .child(format!("{n} {}", plural(*n, "серия", "серии", "серий"))),
+                )
+        });
+        Some(
+            card()
+                .flex_1()
+                .child(heading("Больше всего серий"))
+                .child(div().flex().flex_wrap().gap(px(16.)).children(items)),
+        )
     }
 }
 

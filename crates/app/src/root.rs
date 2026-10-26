@@ -774,11 +774,13 @@ impl Root {
                 self.settings.clone().unwrap().into_any_element()
             }
             Route::Stats => {
-                let core = self.core.clone();
-                self.stats
-                    .get_or_insert_with(|| cx.new(|cx| StatsPage::new(core, cx)))
-                    .clone()
-                    .into_any_element()
+                if self.stats.is_none() {
+                    let core = self.core.clone();
+                    let page = cx.new(|cx| StatsPage::new(core, cx));
+                    self.on_page_events(&page, window, cx);
+                    self.stats = Some(page);
+                }
+                self.stats.clone().unwrap().into_any_element()
             }
             Route::Schedule => {
                 if self.schedule.is_none() {

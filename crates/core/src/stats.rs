@@ -95,6 +95,37 @@ pub struct Stats {
     pub months: Vec<(String, i64)>,
     pub genres: Vec<(String, i64)>,
     pub studios: Vec<(String, i64)>,
+    /// Episodes watched on each of the last ACTIVITY_DAYS days, the oldest first.
+    pub activity: Vec<i64>,
+    /// The titles with the most episodes watched, as (id, episodes).
+    pub top: Vec<(i64, i64)>,
+}
+
+/// Six months of days, in whole weeks.
+pub const ACTIVITY_DAYS: i64 = 26 * 7;
+
+/// How many of `days` fall on each of the `span` days up to `today`, the oldest first.
+pub fn activity(days: &[i64], today: i64, span: i64) -> Vec<i64> {
+    let mut out = vec![0; span as usize];
+    for &d in days {
+        let back = today - d;
+        if (0..span).contains(&back) {
+            out[(span - 1 - back) as usize] += 1;
+        }
+    }
+    out
+}
+
+/// The `n` titles with the most watched episodes, most first (ties by id for a stable order).
+pub fn top_titles(watched: &[&EpisodeProgress], n: usize) -> Vec<(i64, i64)> {
+    let mut counts: std::collections::HashMap<i64, i64> = std::collections::HashMap::new();
+    for p in watched {
+        *counts.entry(p.shikimori_id).or_default() += 1;
+    }
+    let mut list: Vec<(i64, i64)> = counts.into_iter().collect();
+    list.sort_by(|a, b| b.1.cmp(&a.1).then(a.0.cmp(&b.0)));
+    list.truncate(n);
+    list
 }
 
 /// The statistics of a library; genres and studios come from titles being watched or finished.
@@ -147,6 +178,15 @@ pub fn build(
         months: months(&times, now, offset_min),
         genres: top_counts(tasted.iter().flat_map(|a| a.genres.clone()), 8),
         studios: top_counts(tasted.iter().flat_map(|a| a.studios.clone()), 6),
+        activity: activity(
+            &times
+                .iter()
+                .map(|&t| local_day(t, offset_min))
+                .collect::<Vec<_>>(),
+            local_day(now, offset_min),
+            ACTIVITY_DAYS,
+        ),
+        top: top_titles(&watched, 6),
     }
 }
 
@@ -170,6 +210,12 @@ pub fn watch_time(rows: &[(bool, f64, f64)]) -> (i64, bool) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn activity_counts_episodes_per_day_oldest_first() {
+        // Today is day 100; two episodes today, one three days ago, one out of the span.
+        assert_eq!(activity(&[100, 100, 97, 10], 100, 5), vec![0, 1, 0, 0, 2]);
+    }
 
     const DAY: i64 = 86_400;
 

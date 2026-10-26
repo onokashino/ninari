@@ -232,23 +232,6 @@ impl Render for LibraryPage {
                     .text_size(px(34.))
                     .font_weight(FontWeight::EXTRA_BOLD)
                     .child("Библиотека"),
-            )
-            .child(
-                div()
-                    .flex()
-                    .gap(px(16.))
-                    .child(more_link(
-                        "history",
-                        "История",
-                        accent,
-                        self.open(Route::History, cx),
-                    ))
-                    .child(more_link(
-                        "stats",
-                        "Статистика",
-                        accent,
-                        self.open(Route::Stats, cx),
-                    )),
             );
 
         let controls = (!self.pin.pinned()).then(|| self.controls(32., accent, window, cx));
