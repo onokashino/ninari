@@ -6,7 +6,10 @@
 use std::cell::Cell;
 use std::rc::Rc;
 
-use gpui::{AnyElement, IntoElement, ParentElement, Styled, canvas, div, prelude::*, px, rgba};
+use gpui::{
+    AnyElement, BoxShadow, IntoElement, ParentElement, Styled, canvas, div, point, prelude::*, px,
+    rgba,
+};
 
 use crate::theme;
 
@@ -53,22 +56,31 @@ impl Pin {
     }
 }
 
-/// The band along the top of the page that holds pinned controls.
+/// The panel floating over the top of the page that holds pinned controls, in the look of the
+/// app's other floating things (menus, the hover details): glass, rounded, a soft shadow.
 pub fn band(controls: AnyElement) -> AnyElement {
     div()
         .id("pinned")
         .occlude()
         .absolute()
-        .top_0()
-        .left_0()
-        .right_0()
+        .top(px(10.))
+        .left(px(24.))
+        .right(px(24.))
         .max_h(gpui::relative(0.8))
         .overflow_y_scroll()
-        .px(px(48.))
-        .py(px(14.))
-        .bg(rgba((theme::INK << 8) | 0xf8))
-        .border_b_1()
+        .px(px(24.))
+        .py(px(12.))
+        .rounded(theme::R_L)
+        .bg(rgba((theme::INK << 8) | 0xec))
+        .border_1()
         .border_color(theme::line())
+        .shadow(vec![BoxShadow {
+            color: rgba(0x00000080).into(),
+            offset: point(px(0.), px(12.)),
+            blur_radius: px(32.),
+            spread_radius: px(-8.),
+            inset: false,
+        }])
         .child(controls)
         .into_any_element()
 }

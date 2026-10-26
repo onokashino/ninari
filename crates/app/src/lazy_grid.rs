@@ -96,3 +96,71 @@ mod tests {
         assert_eq!(visible_rows(Some(-100_000.), 50, 300., 1000.), 50..50);
     }
 }
+
+/// Lines of known heights (the room after each included), of which only those near the screen
+/// are built; the others stand as one empty box above and one below.
+pub fn lazy_list(
+    top: &GridTop,
+    heights: &[f32],
+    screen: f32,
+    mut line: impl FnMut(usize) -> AnyElement,
+) -> AnyElement {
+    let shown = visible_lines(top.0.get().map(f32::from), heights, screen);
+    let above: f32 = heights[..shown.start].iter().sum();
+    let below: f32 = heights[shown.end..].iter().sum();
+    let measure = top.0.clone();
+    div()
+        .relative()
+        .flex()
+        .flex_col()
+        .child(
+            canvas(
+                move |bounds, _, _| measure.set(Some(bounds.top())),
+                |_, _, _, _| {},
+            )
+            .absolute()
+            .top_0()
+            .left_0()
+            .size_full(),
+        )
+        .child(div().h(px(above)))
+        .children(shown.map(|i| div().h(px(heights[i])).child(line(i))))
+        .child(div().h(px(below)))
+        .into_any_element()
+}
+
+/// The lines within a third of a screen of the window, where the list's top was at `top`.
+fn visible_lines(top: Option<f32>, heights: &[f32], screen: f32) -> std::ops::Range<usize> {
+    let Some(top) = top else {
+        return 0..heights.len();
+    };
+    let (from, to) = (-top - screen / 3., -top + screen * 4. / 3.);
+    let mut y = 0.;
+    let mut range = heights.len()..heights.len();
+    for (i, h) in heights.iter().enumerate() {
+        if y + h >= from && range.start == heights.len() {
+            range.start = i;
+        }
+        if y > to {
+            range.end = i;
+            break;
+        }
+        y += h;
+    }
+    range.start = range.start.min(range.end);
+    range
+}
+
+#[cfg(test)]
+mod list_tests {
+    use super::visible_lines;
+
+    #[test]
+    fn only_the_lines_near_the_screen_are_built() {
+        let heights = [100.; 50];
+        assert_eq!(visible_lines(None, &heights, 900.), 0..50);
+        assert_eq!(visible_lines(Some(0.), &heights, 900.), 0..13);
+        assert_eq!(visible_lines(Some(-2000.), &heights, 900.), 16..33);
+        assert_eq!(visible_lines(Some(-100_000.), &heights, 900.), 50..50);
+    }
+}

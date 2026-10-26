@@ -90,7 +90,7 @@ pub fn rise(
             .or_insert_with(Instant::now)
     });
     if first.elapsed() > Duration::from_millis(delay + ms) {
-        return div().flex_none().child(el).into_any_element();
+        return el.into_any_element();
     }
     div()
         .flex_none()

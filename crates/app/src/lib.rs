@@ -4,6 +4,7 @@ use gpui::{App, ClickEvent, Window};
 
 pub mod assets;
 pub mod button;
+pub mod card_element;
 pub mod cards;
 pub mod catalog;
 pub mod catalog_page;
@@ -17,6 +18,7 @@ pub mod format;
 pub mod franchise;
 pub mod history_page;
 pub mod home;
+pub mod hover_card;
 pub mod images;
 pub mod lazy_grid;
 pub mod library;

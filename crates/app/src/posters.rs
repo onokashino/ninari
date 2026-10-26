@@ -50,6 +50,14 @@ pub fn poster(card: &AnimeCard, cx: &mut App) -> Option<(PathBuf, Palette)> {
     None
 }
 
+/// The poster file alone, for drawing it: no copy of the palette on every frame.
+pub fn poster_path(card: &AnimeCard, cx: &mut App) -> Option<PathBuf> {
+    match &card.poster_path {
+        Some(path) => Some(path.into()),
+        None => poster(card, cx).map(|(path, _)| path),
+    }
+}
+
 /// True once it is known that the title has no poster at all.
 pub fn missing(card: &AnimeCard, cx: &App) -> bool {
     card.poster_path.is_none()

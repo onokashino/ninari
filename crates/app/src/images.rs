@@ -21,6 +21,11 @@ struct Entry {
     seen: u64,
 }
 
+/// The window's picture cache, for elements that paint pictures themselves (card_element).
+pub struct Current(pub Entity<Images>);
+
+impl gpui::Global for Current {}
+
 pub struct Images {
     entries: HashMap<u64, Entry>,
     bytes: usize,

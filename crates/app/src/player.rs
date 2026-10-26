@@ -146,6 +146,9 @@ pub struct Player {
     seek_bounds: Rc<Cell<Bounds<Pixels>>>,
     seek_hover: Option<f64>,
     seek_drag: Rc<Cell<Option<f64>>>,
+    /// Where a seek was let go and when: shown until mpv gets there, so the knob does not
+    /// jump back to where it was meanwhile.
+    seek_to: Rc<Cell<Option<(f64, Instant)>>>,
     volume_bounds: Rc<Cell<Bounds<Pixels>>>,
     volume_drag: Rc<Cell<bool>>,
     /// The title playing: its card, franchise and dubs.
@@ -205,6 +208,7 @@ impl Player {
             seek_bounds: Rc::default(),
             seek_hover: None,
             seek_drag: Rc::default(),
+            seek_to: Rc::default(),
             volume_bounds: Rc::default(),
             volume_drag: Rc::default(),
             anime: None,
@@ -708,7 +712,17 @@ impl Player {
             }
             f64::from(((x - b.left()) / b.size.width).clamp(0., 1.)) * duration
         };
-        let shown = self.seek_drag.get().unwrap_or(s.position);
+        let pending = self.seek_to.get().filter(|(to, at)| {
+            at.elapsed() < Duration::from_secs(3) && (s.position - to).abs() > 1.
+        });
+        if pending.is_none() {
+            self.seek_to.set(None);
+        }
+        let shown = self
+            .seek_drag
+            .get()
+            .or(pending.map(|(to, _)| to))
+            .unwrap_or(s.position);
         let pct = |t: f64| {
             if duration > 0. {
                 relative((t / duration).clamp(0., 1.) as f32)
@@ -774,6 +788,7 @@ impl Player {
         let (move_at, up_at) = (at.clone(), at.clone());
         let this = cx.entity().downgrade();
         let this_up = this.clone();
+        let seek_to = self.seek_to.clone();
         div()
             .id("seek")
             .relative()
@@ -872,6 +887,7 @@ impl Player {
                 move |x, window, cx| {
                     if up_drag.take().is_some() {
                         let t = up_at(x);
+                        seek_to.set(Some((t, Instant::now())));
                         this_up
                             .update(cx, |p, cx| p.control("seek", Some(t), cx))
                             .ok();

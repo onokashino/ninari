@@ -2,6 +2,7 @@
 //! episode plays.
 
 use std::collections::HashMap;
+use std::rc::Rc;
 use std::sync::Arc;
 
 use gpui::{
@@ -17,6 +18,7 @@ use crate::catalog_page::{CatalogPage, Seed};
 use crate::core::Core;
 use crate::history_page::HistoryPage;
 use crate::home::{Home, HomeEvent};
+use crate::hover_card;
 use crate::images::Images;
 use crate::library_page::{LibraryPage, Open};
 #[cfg(target_os = "linux")]
@@ -118,6 +120,8 @@ impl Root {
             .inspect(|v| core.player_host.set_video_window(v.handle()))
             .map_err(|e| tracing::warn!("no video window, mpv plays in its own: {e:#}"))
             .ok();
+        let images = Images::new(cx);
+        cx.set_global(crate::images::Current(images.clone()));
         Self {
             core,
             home,
@@ -144,7 +148,7 @@ impl Root {
             focus,
             glide: Glide::default(),
             autoscroll: Autoscroll::default(),
-            images: Images::new(cx),
+            images,
             drawn_title: None,
         }
     }
@@ -635,6 +639,22 @@ impl Render for Root {
         self.glide.step(&scroll, window);
         self.autoscroll.step(&scroll, window);
         let page = self.page(route, window, cx);
+        let details = {
+            let (open, changed) = (cx.entity().downgrade(), cx.entity().downgrade());
+            hover_card::overlay(
+                hover_card::Actions {
+                    open: Rc::new(move |id, _, cx| {
+                        open.update(cx, |root, cx| root.open(Route::Title(id), cx))
+                            .ok();
+                    }),
+                    changed: Rc::new(move |_, cx| {
+                        changed.update(cx, |root, cx| root.library_changed(cx)).ok();
+                    }),
+                },
+                window,
+                cx,
+            )
+        };
         // The page's controls along the top once it has scrolled past them.
         let pinned = match route {
             Route::Catalog => self
@@ -677,6 +697,7 @@ impl Render for Root {
                     .children(pinned),
             )
             .children(self.autoscroll.mark())
+            .children(details)
             .children(self.palette.clone())
             .children(self.offer.clone())
             .children(self.update.clone().map(|info| update_banner(info, cx)))
