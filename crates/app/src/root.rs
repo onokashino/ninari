@@ -6,8 +6,8 @@ use std::sync::Arc;
 
 use gpui::{
     AnyElement, AnyView, Context, Entity, EventEmitter, FocusHandle, FontWeight, IntoElement,
-    KeyDownEvent, MouseButton, NavigationDirection, Transformation, Window, div, prelude::*, px,
-    rgb, rgba, size, svg,
+    KeyDownEvent, MouseButton, NavigationDirection, Transformation, Window, div, image_cache,
+    prelude::*, px, rgb, rgba, size, svg,
 };
 use ninari_core::catalog::posters::Palette;
 use ninari_core::error::AppError;
@@ -17,6 +17,7 @@ use crate::catalog_page::{CatalogPage, Seed};
 use crate::core::Core;
 use crate::history_page::HistoryPage;
 use crate::home::{Home, HomeEvent};
+use crate::images::Images;
 use crate::library_page::{LibraryPage, Open};
 use crate::mpv::Mpv;
 use crate::nav::PageEvent;
@@ -70,6 +71,10 @@ pub struct Root {
     video: Option<(Video, Arc<Mpv>)>,
     focus: FocusHandle,
     glide: Glide,
+    /// Every picture of the window, kept decoded up to a budget.
+    images: Entity<Images>,
+    /// The title page drawn last: it frees its banners once another page is on screen.
+    drawn_title: Option<Entity<Title>>,
 }
 
 impl Root {
@@ -121,6 +126,8 @@ impl Root {
             video: None,
             focus,
             glide: Glide::default(),
+            images: Images::new(cx),
+            drawn_title: None,
         }
     }
 
@@ -507,6 +514,17 @@ impl Render for Root {
             }
             _ => None,
         };
+        let title = match route {
+            Route::Title(id) if self.player.is_none() => self.titles.get(&id).cloned(),
+            _ => None,
+        };
+        if let Some(old) = self
+            .drawn_title
+            .take_if(|old| Some(&*old) != title.as_ref())
+        {
+            old.update(cx, |page, _| page.release(window));
+        }
+        self.drawn_title = title;
         let palette = match (&self.player, hero) {
             (Some(player), _) => player.read(cx).palette().clone(),
             (None, Some(card)) => poster(&card, cx).map(|(_, p)| p).unwrap_or_default(),
@@ -544,7 +562,9 @@ impl Render for Root {
             video.resize(w, h);
         }
         if let Some(player) = &self.player {
-            return root.child(player.clone());
+            return image_cache(self.images.clone())
+                .size_full()
+                .child(root.child(player.clone()));
         }
 
         // The poster's glow behind the top of every page. GPUI rasterises an SVG at its full size
@@ -571,7 +591,8 @@ impl Render for Root {
         let scroll = self.history.current().scroll.clone();
         self.glide.step(&scroll, window);
         let page = self.page(route, window, cx);
-        root.relative()
+        let root = root
+            .relative()
             .flex()
             .bg(rgb(theme::INK))
             .child(glow)
@@ -599,7 +620,8 @@ impl Render for Root {
             .children(self.palette.clone())
             .children(self.offer.clone())
             .children(self.update.clone().map(|info| update_banner(info, cx)))
-            .children(self.onboarding.clone())
+            .children(self.onboarding.clone());
+        image_cache(self.images.clone()).size_full().child(root)
     }
 }
 

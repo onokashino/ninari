@@ -17,6 +17,7 @@ pub mod format;
 pub mod franchise;
 pub mod history_page;
 pub mod home;
+pub mod images;
 pub mod library;
 pub mod library_page;
 pub mod modal;

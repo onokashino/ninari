@@ -4,6 +4,7 @@
 use std::cell::Cell;
 use std::collections::HashMap;
 use std::collections::hash_map::Entry;
+use std::path::PathBuf;
 use std::rc::Rc;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
@@ -108,8 +109,8 @@ struct Season {
     card: Load<AnimeCard>,
     progress: Load<Progress>,
     sources: Load<TitleSources>,
-    /// The wide AniList picture, decoded.
-    banner: Option<Arc<RgbaImage>>,
+    /// The wide AniList picture's file: decoded only to cut a view, which is dropped off screen.
+    banner: Option<PathBuf>,
     /// The banner cut and faded for a box this many logical pixels wide.
     banner_view: Option<(u32, Arc<RenderImage>)>,
     banner_pending: Option<u32>,
@@ -237,6 +238,21 @@ impl Title {
     }
 
     /// The part on screen.
+    /// Frees every banner: the page is off screen. They are cut again from the file when shown.
+    pub fn release(&mut self, window: &mut Window) {
+        self.drop_banners(window, |_| false);
+    }
+
+    fn drop_banners(&mut self, window: &mut Window, keep: impl Fn(i64) -> bool) {
+        for (&id, season) in &mut self.seasons {
+            if !keep(id)
+                && let Some((_, view)) = season.banner_view.take()
+            {
+                window.drop_image(view).ok();
+            }
+        }
+    }
+
     pub fn shown(&self) -> i64 {
         self.shown
     }
@@ -298,20 +314,12 @@ impl Title {
             }),
             move |page, similar| page.season_mut(id).similar = similar,
         );
-        let path = self.core.run(move |c| async move {
-            let anime = c.catalog.get(id).await?;
-            c.posters.banner(&anime).await
-        });
-        let rt = self.core.rt.clone();
         fetch(
             cx,
-            async move {
-                let Some(path) = path.await? else {
-                    return Ok(None);
-                };
-                let decoded = rt.spawn_blocking(move || image::open(path).map(|i| i.into_rgba8()));
-                Ok(Some(Arc::new(decoded.await??)))
-            },
+            self.core.run(move |c| async move {
+                let anime = c.catalog.get(id).await?;
+                c.posters.banner(&anime).await
+            }),
             move |page, banner| {
                 if let Load::Ready(b) = banner {
                     page.season_mut(id).banner = b;
@@ -1287,6 +1295,10 @@ impl Render for Title {
         for old in self.stale.drain(..) {
             window.drop_image(old).ok();
         }
+        // Only the part on screen, and the one a switch fades out, keep their banner.
+        let fading = self.switch.as_ref().map(|s| s.from);
+        let shown = self.shown;
+        self.drop_banners(window, |id| id == shown || Some(id) == fading);
         let width = window.viewport_size().width - px(rail::WIDTH);
         let want = f32::from(width).round() as u32;
         let shown = self.shown;
@@ -1296,12 +1308,14 @@ impl Render for Title {
             && season.banner_pending != Some(want)
         {
             season.banner_pending = Some(want);
-            let job = self
-                .core
-                .rt
-                .spawn_blocking(move || fade_banner(&source, want as f32, 440.));
+            let job = self.core.rt.spawn_blocking(move || {
+                let decoded = image::open(&source).map_err(|e| tracing::info!("banner: {e}"));
+                decoded
+                    .ok()
+                    .map(|i| fade_banner(&i.into_rgba8(), want as f32, 440.))
+            });
             cx.spawn(async move |page, cx| {
-                let Ok(faded) = job.await else { return };
+                let Ok(Some(faded)) = job.await else { return };
                 page.update(cx, |page, cx| {
                     let season = page.season_mut(shown);
                     if season.banner_pending == Some(want) {
