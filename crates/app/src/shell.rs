@@ -315,7 +315,7 @@ pub fn register_scheme() {
                 .arg("/f")
                 .creation_flags(0x0800_0000) // CREATE_NO_WINDOW
                 .status();
-            if !done.is_ok_and(|s| s.success()) {
+            if !done.as_ref().is_ok_and(|s| s.success()) {
                 tracing::warn!("cannot register {SCHEME}:// links: {done:?}");
                 return;
             }
