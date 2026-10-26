@@ -19,7 +19,7 @@ use crate::cards::poster_frame;
 use crate::clock::{local_day, local_time, now, utc_offset};
 use crate::core::Core;
 use crate::data::{Load, fetch, title};
-use crate::format::remaining;
+use crate::format::{plural, remaining};
 use crate::lazy_grid::{self, GridTop, lazy_list};
 use crate::library_page::content_width;
 use crate::nav::{PageEvent, Route};
@@ -59,7 +59,20 @@ pub struct HistoryPage {
 /// A line of the list: a day's heading, or episodes side by side.
 enum Line {
     Day(String),
-    Rows(Range<usize>),
+    /// Rows side by side, each the run of one title's episodes watched in a row.
+    Rows(Vec<Range<usize>>),
+}
+
+/// Runs of the same title in a row: one line for "Серии 2–10" rather than nine.
+fn runs(ids: &[i64]) -> Vec<Range<usize>> {
+    let mut out: Vec<Range<usize>> = Vec::new();
+    for (i, id) in ids.iter().enumerate() {
+        match out.last_mut() {
+            Some(r) if ids[r.start] == *id => r.end = i + 1,
+            _ => out.push(i..i + 1),
+        }
+    }
+    out
 }
 
 const ROW_H: f32 = 88.;
@@ -177,12 +190,38 @@ impl HistoryPage {
     /// One episode: when, the title, how far it got, play again and remove.
     fn row(
         &self,
-        p: &EpisodeProgress,
+        run: &[EpisodeProgress],
         titles: &HashMap<i64, &AnimeCard>,
         accent: gpui::Hsla,
         cx: &mut Context<Self>,
     ) -> Option<AnyElement> {
+        // The newest first: its time, and the episode Play starts.
+        let p = run.first()?;
         let card = *titles.get(&p.shikimori_id)?;
+        let (low, high) = run.iter().fold((i64::MAX, 0), |(lo, hi), e| {
+            (lo.min(e.episode), hi.max(e.episode))
+        });
+        let label = if run.len() > 1 {
+            format!("Серии {low}–{high}")
+        } else {
+            format!("Серия {}", p.episode)
+        };
+        let state = if run.len() > 1 {
+            let n = run.len() as i64;
+            let watched = run.iter().filter(|e| e.watched).count() as i64;
+            if watched == n {
+                format!(
+                    "{n} {}, все просмотрены",
+                    plural(n, "серия", "серии", "серий")
+                )
+            } else {
+                format!("просмотрено {watched} из {n}")
+            }
+        } else {
+            episode_state(p)
+        };
+        let all_watched = run.iter().all(|e| e.watched);
+        let single = run.len() == 1;
         let name = title(&card.anime);
         let (id, episode) = (p.shikimori_id, p.episode);
         let request = Request {
@@ -255,15 +294,15 @@ impl HistoryPage {
                                         .gap_x(px(12.))
                                         .text_color(rgb(theme::TEXT_2))
                                         .text_size(px(13.))
-                                        .child(format!("Серия {episode}"))
+                                        .child(label)
                                         .child(
                                             div()
-                                                .text_color(if p.watched {
+                                                .text_color(if all_watched {
                                                     theme::mix(rgb(theme::TEXT), accent, 0.7)
                                                 } else {
                                                     rgb(theme::TEXT_3).into()
                                                 })
-                                                .child(episode_state(p)),
+                                                .child(state),
                                         ),
                                 ),
                         ),
@@ -278,12 +317,20 @@ impl HistoryPage {
                                     cx.emit(PageEvent::Play(request.clone()))
                                 })),
                         )
-                        .child(
-                            round_action(("forget", (id as u64) << 16 | episode as u64), "close")
-                                .on_click(cx.listener(move |page, _, _, cx| {
-                                    page.remove(&row, forget_name.clone(), cx)
-                                })),
-                        ),
+                        // One button taking a run of episodes away at once is too easy to hit.
+                        .when(single, |d| {
+                            d.child(
+                                round_action(
+                                    ("forget", (id as u64) << 16 | episode as u64),
+                                    "close",
+                                )
+                                .on_click(cx.listener(
+                                    move |page, _, _, cx| {
+                                        page.remove(&row, forget_name.clone(), cx)
+                                    },
+                                )),
+                            )
+                        }),
                 )
                 .into_any_element(),
         )
@@ -375,11 +422,16 @@ impl Render for HistoryPage {
                 let mut lines: Vec<Line> = Vec::new();
                 for (label, range) in self.days.as_ref().map(|d| &d.2[..]).unwrap_or_default() {
                     lines.push(Line::Day(label.clone()));
-                    let mut from = range.start;
-                    while from < range.end {
-                        let to = (from + columns).min(range.end);
-                        lines.push(Line::Rows(from..to));
-                        from = to;
+                    let ids: Vec<i64> = h.episodes[range.clone()]
+                        .iter()
+                        .map(|p| p.shikimori_id)
+                        .collect();
+                    let groups: Vec<Range<usize>> = runs(&ids)
+                        .into_iter()
+                        .map(|r| r.start + range.start..r.end + range.start)
+                        .collect();
+                    for chunk in groups.chunks(columns) {
+                        lines.push(Line::Rows(chunk.to_vec()));
                     }
                 }
                 let heights: Vec<f32> = lines
@@ -398,16 +450,18 @@ impl Render for HistoryPage {
                         .font_weight(FontWeight::EXTRA_BOLD)
                         .child(label.clone())
                         .into_any_element(),
-                    Line::Rows(range) => div()
+                    Line::Rows(groups) => div()
                         .flex()
                         .gap(px(GAP))
-                        .children(h.episodes[range.clone()].iter().map(|p| {
-                            div()
-                                .flex_1()
-                                .min_w(px(0.))
-                                .children(self.row(p, &titles, accent, cx))
+                        .children(groups.iter().map(|g| {
+                            div().flex_1().min_w(px(0.)).children(self.row(
+                                &h.episodes[g.clone()],
+                                &titles,
+                                accent,
+                                cx,
+                            ))
                         }))
-                        .children((range.len()..columns).map(|_| div().flex_1()))
+                        .children((groups.len()..columns).map(|_| div().flex_1()))
                         .into_any_element(),
                 });
                 sections.push(list);
@@ -470,5 +524,16 @@ impl Render for HistoryPage {
             .children(self.error.clone().map(|e| div().text_color(rgb(theme::DANGER)).child(e)))
             .children(sections)
             .children(undo)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_title_watched_in_a_row_is_one_line() {
+        assert_eq!(runs(&[7, 7, 7, 3, 7]), vec![0..3, 3..4, 4..5]);
+        assert_eq!(runs(&[]), Vec::<Range<usize>>::new());
     }
 }

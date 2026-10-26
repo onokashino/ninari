@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # The app's commands, run from the project folder as `bun gpui`, `bun play`, `bun shot`.
 # Everything runs under a memory cap with no swap, so a leak hits its own limit instead of the
-# whole machine.
+# whole machine, and on half the cores at a lower priority.
 #
 #   gpui [--page title:<id>]  build and start the app, on that page
 #   play        the same, straight into the episode on the continue card
@@ -13,7 +13,10 @@ export CARGO_TARGET_DIR="$root/target"
 
 capped() { # capped <memory> <command...>
   local mem="$1"; shift
-  systemd-run --user --scope -q -p MemoryMax="$mem" -p MemorySwapMax=0 "$@"
+  # Half the cores at a lower priority: a build must not freeze the desktop.
+  local cores; cores=$(( $(nproc) * 50 ))
+  systemd-run --user --scope -q -p MemoryMax="$mem" -p MemorySwapMax=0 \
+    -p CPUQuota="${cores}%" -p Nice=10 "$@"
 }
 
 build_gpui() {
