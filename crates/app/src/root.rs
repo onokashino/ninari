@@ -42,6 +42,8 @@ use crate::title::{Title, TitleEvent};
 use crate::updates::{self, Progress, UpdateInfo};
 #[cfg(target_os = "linux")]
 use crate::video::Video;
+#[cfg(windows)]
+use crate::video_win::VideoWindow;
 
 pub struct Root {
     core: Arc<Core>,
@@ -72,6 +74,9 @@ pub struct Root {
     /// libmpv and the surface it draws into, once the player asked for them.
     #[cfg(target_os = "linux")]
     video: Option<(Video, Arc<Mpv>)>,
+    /// Windows: the child window under the app that mpv draws into, shown while the player is.
+    #[cfg(windows)]
+    video_window: Option<VideoWindow>,
     focus: FocusHandle,
     glide: Glide,
     /// Every picture of the window, kept decoded up to a budget.
@@ -107,6 +112,11 @@ impl Root {
             let height = f32::from(display.bounds().size.height) * window.scale_factor();
             core.player_host.set_screen_height(height as u32);
         }
+        #[cfg(windows)]
+        let video_window = VideoWindow::new(&*window)
+            .inspect(|v| core.player_host.set_video_window(v.handle()))
+            .map_err(|e| tracing::warn!("no video window, mpv plays in its own: {e:#}"))
+            .ok();
         Self {
             core,
             home,
@@ -128,6 +138,8 @@ impl Root {
             player: None,
             #[cfg(target_os = "linux")]
             video: None,
+            #[cfg(windows)]
+            video_window,
             focus,
             glide: Glide::default(),
             images: Images::new(cx),
@@ -505,7 +517,7 @@ impl Root {
 }
 
 /// The window's inside in device pixels, the size the video surface takes.
-#[cfg(target_os = "linux")]
+#[cfg(any(target_os = "linux", windows))]
 fn device_size(window: &Window) -> (i32, i32) {
     let size = window.viewport_size();
     let scale = window.scale_factor();
@@ -578,6 +590,16 @@ impl Render for Root {
         if let Some((video, _)) = &self.video {
             let (w, h) = device_size(window);
             video.resize(w, h);
+        }
+        #[cfg(windows)]
+        if let Some(video) = &mut self.video_window {
+            match &self.player {
+                Some(_) => {
+                    let (w, h) = device_size(window);
+                    video.show(w, h);
+                }
+                None => video.hide(),
+            }
         }
         if let Some(player) = &self.player {
             return image_cache(self.images.clone())

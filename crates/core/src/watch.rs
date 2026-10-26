@@ -200,8 +200,14 @@ impl Watcher {
                 .flatten()
                 .and_then(|v| serde_json::from_value(v).ok())
         };
-        for id in sequels_to_announce(&current, seen.as_ref()) {
-            if let Some(n) = seasons.iter().find(|n| n.anime.id == id) {
+        // Known from an empty library is known of nothing: the list from Shikimori lands after.
+        let known = seen.as_ref().filter(|s| !s.is_empty());
+        for id in sequels_to_announce(&current, known) {
+            // Only a season airing now is news; one that ended long ago is in "new seasons".
+            if let Some(n) = seasons
+                .iter()
+                .find(|n| n.anime.id == id && n.anime.status.as_deref() == Some("ongoing"))
+            {
                 let after = n
                     .after
                     .russian

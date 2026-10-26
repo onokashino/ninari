@@ -32,14 +32,8 @@ fn open_window(core: &Arc<Core>, autoplay: bool, page: Option<Route>, cx: &mut A
         .open_window(
             WindowOptions {
                 window_bounds: Some(WindowBounds::Windowed(bounds)),
-                // On Linux the player's video lies under the window and shows through it; elsewhere
-                // it plays in mpv's own window, and Windows draws transparency through
-                // DirectComposition, which not every system has.
-                window_background: if cfg!(target_os = "linux") {
-                    WindowBackgroundAppearance::Transparent
-                } else {
-                    WindowBackgroundAppearance::Opaque
-                },
+                // The player's video lies under the window and shows through it.
+                window_background: WindowBackgroundAppearance::Transparent,
                 app_id: Some("ninari".into()),
                 titlebar: Some(gpui::TitlebarOptions {
                     title: Some("ninari".into()),

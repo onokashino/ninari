@@ -406,7 +406,12 @@ fn embedded_args(target: Target, pipe: &str, config_dir: &str) -> Vec<String> {
         args.push("--force-window=yes".into());
     }
     if let Target::Window(wid) = target {
-        args.extend([format!("--wid={wid}"), "--gpu-api=d3d11".into()]);
+        args.extend([
+            format!("--wid={wid}"),
+            "--gpu-api=d3d11".into(),
+            // Clicks and the pointer over the video belong to the app's controls above it.
+            "--input-cursor-passthrough=yes".into(),
+        ]);
     }
     if target != Target::Own {
         args.extend(
@@ -1835,6 +1840,7 @@ mod tests {
             "--load-scripts=no",
             "--osd-level=0",
             "--gpu-api=d3d11",
+            "--input-cursor-passthrough=yes",
         ] {
             assert!(args.iter().any(|a| a == expected), "{expected} missing");
         }

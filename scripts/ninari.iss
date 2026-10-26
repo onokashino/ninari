@@ -35,7 +35,7 @@ Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{
 Source: "{#Source}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 [Icons]
-Name: "{autoprograms}\ninari"; Filename: "{app}\ninari.exe"
+Name: "{autoprograms}\ninari"; Filename: "{app}\ninari.exe"; AppUserModelID: "onokashino.ninari"
 Name: "{autodesktop}\ninari"; Filename: "{app}\ninari.exe"; Tasks: desktopicon
 
 [Registry]

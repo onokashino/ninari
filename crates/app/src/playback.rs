@@ -6,7 +6,7 @@ use std::future::Future;
 use std::path::PathBuf;
 use std::pin::Pin;
 use std::sync::Arc;
-use std::sync::atomic::{AtomicU32, Ordering};
+use std::sync::atomic::{AtomicIsize, AtomicU32, Ordering};
 
 use ninari_core::account::Account;
 use ninari_core::error::AppError;
@@ -25,6 +25,8 @@ pub struct GpuiHost {
     tx: mpsc::UnboundedSender<HostMsg>,
     screen_height: AtomicU32,
     account: Arc<Account>,
+    /// Windows: the child window mpv draws into, 0 until the app window made it.
+    video_window: AtomicIsize,
 }
 
 impl GpuiHost {
@@ -34,8 +36,13 @@ impl GpuiHost {
             tx,
             screen_height: AtomicU32::new(1080),
             account,
+            video_window: AtomicIsize::new(0),
         });
         (host, rx)
+    }
+
+    pub fn set_video_window(&self, hwnd: isize) {
+        self.video_window.store(hwnd, Ordering::Relaxed);
     }
 
     /// The display the window is on, in device pixels, for Anime4K.
@@ -90,6 +97,12 @@ impl PlayerHost for GpuiHost {
     /// Episodes watched go to the list on Shikimori too.
     fn watched(&self, shikimori_id: i64) {
         self.account.push(shikimori_id);
+    }
+
+    /// mpv draws into the app window's child (see video_win) where there is one.
+    fn window_handle(&self, _label: &str) -> Result<Option<isize>, AppError> {
+        let hwnd = self.video_window.load(Ordering::Relaxed);
+        Ok((hwnd != 0).then_some(hwnd))
     }
 
     fn can_render(&self) -> bool {

@@ -204,7 +204,11 @@ pub fn poster_card_sized(
                 .mt(px(-4.))
                 .text_color(rgb(theme::TEXT_3))
                 .text_size(px(12.))
-                .children(meta),
+                // A long note ("после «…»") stays within the card.
+                .children(
+                    meta.into_iter()
+                        .map(|m| div().min_w(px(0.)).line_clamp(2).text_ellipsis().child(m)),
+                ),
         );
     rise(card, ("rise", c.anime.id as u64), index, 560, 38, 14.)
 }

@@ -49,6 +49,9 @@ pub fn notify(title: &str, body: &str) {
         let icon = icon_file();
         let mut note = notify_rust::Notification::new();
         note.appname("ninari").summary(&title).body(&body);
+        // Windows names a notification by the app id of the Start menu's shortcut (scripts/ninari.iss).
+        #[cfg(windows)]
+        note.app_id(APP_ID);
         if let Some(icon) = &icon {
             note.icon(&icon.to_string_lossy());
         }
@@ -57,6 +60,10 @@ pub fn notify(title: &str, body: &str) {
         }
     });
 }
+
+/// The Windows app id, the same as the installer gives the Start menu shortcut.
+#[cfg(windows)]
+pub const APP_ID: &str = "onokashino.ninari";
 
 /// The app's stamp as a file, for notifications to show.
 fn icon_file() -> Option<PathBuf> {
@@ -292,31 +299,42 @@ pub fn register_scheme() {
     });
 }
 
-/// The same on Windows: the scheme under the user's own classes, so no admin rights are asked.
+/// The same on Windows: the scheme under the user's own classes, so no admin rights are asked;
+/// and the app id with its name and icon, which notifications show even without the installer's
+/// shortcut.
 #[cfg(windows)]
 pub fn register_scheme() {
     use std::os::windows::process::CommandExt;
     let Ok(exe) = std::env::current_exe() else {
         return;
     };
-    let key = format!(r"HKCU\Software\Classes\{SCHEME}");
+    let scheme = format!(r"HKCU\Software\Classes\{SCHEME}");
+    let app = format!(r"HKCU\Software\Classes\AppUserModelId\{APP_ID}");
     let open = format!("\"{}\" \"%1\"", exe.display());
+    let icon = icon_file()
+        .map(|p| p.display().to_string())
+        .unwrap_or_default();
     std::thread::spawn(move || {
-        let entries: [&[&str]; 3] = [
-            &["/ve", "/d", "URL:ninari"],
-            &["/v", "URL Protocol", "/d", ""],
-            &["/ve", "/d", &open],
+        let entries: [(String, &[&str]); 5] = [
+            (scheme.clone(), &["/ve", "/d", "URL:ninari"]),
+            (scheme.clone(), &["/v", "URL Protocol", "/d", ""]),
+            (
+                format!(r"{scheme}\shell\open\command"),
+                &["/ve", "/d", &open],
+            ),
+            (app.clone(), &["/v", "DisplayName", "/d", "ninari"]),
+            (app, &["/v", "IconUri", "/d", &icon]),
         ];
-        for (sub, args) in ["", "", r"\shell\open\command"].iter().zip(entries) {
+        for (key, args) in entries {
             let done = std::process::Command::new("reg")
                 .arg("add")
-                .arg(format!("{key}{sub}"))
+                .arg(&key)
                 .args(args)
                 .arg("/f")
                 .creation_flags(0x0800_0000) // CREATE_NO_WINDOW
                 .status();
             if !done.as_ref().is_ok_and(|s| s.success()) {
-                tracing::warn!("cannot register {SCHEME}:// links: {done:?}");
+                tracing::warn!("cannot register {key}: {done:?}");
                 return;
             }
         }

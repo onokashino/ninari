@@ -62,5 +62,7 @@ pub mod title_about;
 pub mod updates;
 #[cfg(target_os = "linux")]
 pub mod video;
+#[cfg(windows)]
+pub mod video_win;
 
 pub type OnClick = Box<dyn Fn(&ClickEvent, &mut Window, &mut App) + 'static>;

@@ -10,7 +10,7 @@ ninari currently ships for Linux. The archive is built on Arch and needs current
 ## With one command
 
 ```bash
-curl -L https://github.com/onokashino/ninari/releases/download/v0.1.2/ninari-0.1.2-linux-x86_64.tar.gz | tar xz && ./ninari-*/install.sh
+curl -L https://github.com/onokashino/ninari/releases/download/v0.1.3/ninari-0.1.3-linux-x86_64.tar.gz | tar xz && ./ninari-*/install.sh
 ```
 
 The command downloads the latest release, unpacks it into the current folder and runs the installer. The current command is always on the [Download](../download.html) page.

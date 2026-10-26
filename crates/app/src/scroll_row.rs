@@ -1,7 +1,7 @@
 //! A horizontal row the mouse can drag and fling, like a touch screen. A press that barely moves
 //! stays a click; the click that ends a drag opens nothing. The wheel scrolls the page, a
-//! touchpad's sideways swipe the row. An edge fades out while there is more to scroll to on that
-//! side.
+//! touchpad's sideways swipe the row. The right edge fades out while there is more to scroll to;
+//! the left one does not, as a fade to the page's colour shows as a dark band over its glow.
 
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -88,7 +88,6 @@ impl Row {
         let left = -self.scroll.offset().x;
         let max = self.scroll.max_offset().x;
         let edge = |name: &str| ElementId::NamedChild(Arc::new(id.clone()), name.into());
-        motion::set(edge("before"), left > px(1.), theme::T_MED, theme::EASE, cx);
         motion::set(
             edge("after"),
             left < max - px(1.),
@@ -96,7 +95,6 @@ impl Row {
             theme::EASE,
             cx,
         );
-        let before = motion::get(edge("before"), window, cx);
         let after = motion::get(edge("after"), window, cx);
         let (top, side, bottom) = room;
         let fade = |angle: f32, width: f32| {
@@ -200,7 +198,6 @@ impl Row {
                     .pb(px(bottom))
                     .children(children),
             )
-            .when(before > 0., |row| row.child(fade(90., before).left_0()))
             .when(after > 0., |row| row.child(fade(270., after).right_0()))
             .child(follow)
             .into_any_element()
