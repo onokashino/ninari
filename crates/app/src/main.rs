@@ -32,8 +32,14 @@ fn open_window(core: &Arc<Core>, autoplay: bool, page: Option<Route>, cx: &mut A
         .open_window(
             WindowOptions {
                 window_bounds: Some(WindowBounds::Windowed(bounds)),
-                // The player's video lies under the window and shows through it.
-                window_background: WindowBackgroundAppearance::Transparent,
+                // On Linux the player's video lies under the window and shows through it; elsewhere
+                // it plays in mpv's own window, and Windows draws transparency through
+                // DirectComposition, which not every system has.
+                window_background: if cfg!(target_os = "linux") {
+                    WindowBackgroundAppearance::Transparent
+                } else {
+                    WindowBackgroundAppearance::Opaque
+                },
                 app_id: Some("ninari".into()),
                 titlebar: Some(gpui::TitlebarOptions {
                     title: Some("ninari".into()),
@@ -159,13 +165,40 @@ fn leave_idle_priority() {
     }
 }
 
+/// The log goes to the terminal and to ninari.log in the cache folder, kept until the next start:
+/// a release on Windows has no terminal, and a failed start must leave a trace somewhere.
+fn start_log() {
+    use tracing_subscriber::fmt::writer::MakeWriterExt;
+    let dir = ninari_app::core::cache_dir();
+    let file =
+        std::fs::create_dir_all(&dir).and_then(|_| std::fs::File::create(dir.join("ninari.log")));
+    let log = tracing_subscriber::fmt()
+        .with_env_filter("info")
+        .with_ansi(false);
+    match file {
+        Ok(file) => log
+            .with_writer(std::io::stderr.and(std::sync::Mutex::new(file)))
+            .init(),
+        Err(_) => log.init(),
+    }
+    let default = std::panic::take_hook();
+    std::panic::set_hook(Box::new(move |info| {
+        tracing::error!("{info}");
+        default(info);
+    }));
+}
+
 /// `ninari` opens the home screen; `--continue` starts the title on its continue card,
 /// `--page <name>` opens a page by its `Route::parse` name ("title:61990"), and an
 /// `ninari://` link is handled, by the instance already running when there is one.
 fn main() -> anyhow::Result<()> {
+    run().inspect_err(|e| tracing::error!("{e:#}"))
+}
+
+fn run() -> anyhow::Result<()> {
     #[cfg(all(debug_assertions, target_os = "linux"))]
     leave_idle_priority();
-    tracing_subscriber::fmt().with_env_filter("info").init();
+    start_log();
     let args: Vec<String> = std::env::args().collect();
     let link = args
         .iter()

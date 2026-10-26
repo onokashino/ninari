@@ -157,6 +157,10 @@ fn prepare(mut conn: Connection) -> anyhow::Result<Connection> {
 }
 
 pub fn open(path: &Path) -> anyhow::Result<Connection> {
+    // On the first start nothing of the app's folder exists yet.
+    if let Some(dir) = path.parent() {
+        std::fs::create_dir_all(dir)?;
+    }
     let conn = Connection::open(path)?;
     conn.pragma_update(None, "journal_mode", "WAL")?;
     prepare(conn)

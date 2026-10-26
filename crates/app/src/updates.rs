@@ -265,7 +265,12 @@ async fn apply(file: &Path) -> Result<Option<PathBuf>, AppError> {
 #[cfg(windows)]
 async fn apply(file: &Path) -> Result<Option<PathBuf>, AppError> {
     std::process::Command::new(file)
-        .args(["/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART", "/CLOSEAPPLICATIONS"])
+        .args([
+            "/VERYSILENT",
+            "/SUPPRESSMSGBOXES",
+            "/NORESTART",
+            "/CLOSEAPPLICATIONS",
+        ])
         .spawn()?;
     Ok(None)
 }
