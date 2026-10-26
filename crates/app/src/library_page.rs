@@ -19,6 +19,7 @@ use crate::format::library_status;
 use crate::lazy_grid::{self, GridTop, lazy_grid, row_height};
 use crate::library::{SORTS, Sort, matches, query_variants, sort};
 use crate::nav::Route;
+use crate::pinned::{self, Pin};
 use crate::popover::Menu;
 use crate::rail;
 use crate::select::{SelectOption, select};
@@ -33,6 +34,7 @@ const TABS: [&str; 5] = ["watching", "planned", "completed", "on_hold", "dropped
 pub struct LibraryPage {
     core: Arc<Core>,
     grid_top: GridTop,
+    pin: Pin,
     status: &'static str,
     sort: Sort,
     sort_menu: Menu,
@@ -58,6 +60,7 @@ impl LibraryPage {
         let mut page = Self {
             core,
             grid_top: GridTop::default(),
+            pin: Pin::default(),
             status: "watching",
             sort: Sort::Recent,
             sort_menu: Menu::default(),
@@ -128,42 +131,15 @@ pub fn grid_columns(width: f32) -> (usize, f32) {
     )
 }
 
-impl Render for LibraryPage {
-    fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        let accent = Accent::colors(cx).0;
-        let width = content_width(window);
-        let (_, card_w) = grid_columns(width);
-        let query = self.query.read(cx).text().to_string();
-
-        let head = div()
-            .flex()
-            .items_baseline()
-            .justify_between()
-            .gap(px(16.))
-            .child(
-                div()
-                    .text_size(px(34.))
-                    .font_weight(FontWeight::EXTRA_BOLD)
-                    .child("Библиотека"),
-            )
-            .child(
-                div()
-                    .flex()
-                    .gap(px(16.))
-                    .child(more_link(
-                        "history",
-                        "История",
-                        accent,
-                        self.open(Route::History, cx),
-                    ))
-                    .child(more_link(
-                        "stats",
-                        "Статистика",
-                        accent,
-                        self.open(Route::Stats, cx),
-                    )),
-            );
-
+impl LibraryPage {
+    /// The status tabs, the search and the sort: in the page, or pinned along the top.
+    fn controls(
+        &mut self,
+        gap: f32,
+        accent: gpui::Hsla,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) -> AnyElement {
         let tabs = div().flex().flex_wrap().gap(px(8.)).children(TABS.map(|t| {
             chip(t, t == self.status, accent)
                 .on_click(cx.listener(move |page, _, _, cx| {
@@ -220,6 +196,62 @@ impl Render for LibraryPage {
                     .child(self.query.clone()),
             )
             .child(div().ml_auto().child(order));
+
+        div()
+            .flex()
+            .flex_col()
+            .gap(px(gap))
+            .child(tabs)
+            .child(toolbar)
+            .into_any_element()
+    }
+
+    /// The controls pinned along the top once the page has scrolled past them.
+    pub fn pinned(&mut self, window: &mut Window, cx: &mut Context<Self>) -> Option<AnyElement> {
+        let accent = Accent::colors(cx).0;
+        self.pin
+            .pinned()
+            .then(|| pinned::band(self.controls(12., accent, window, cx)))
+    }
+}
+
+impl Render for LibraryPage {
+    fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        let accent = Accent::colors(cx).0;
+        let width = content_width(window);
+        let (_, card_w) = grid_columns(width);
+        let query = self.query.read(cx).text().to_string();
+
+        let head = div()
+            .flex()
+            .items_baseline()
+            .justify_between()
+            .gap(px(16.))
+            .child(
+                div()
+                    .text_size(px(34.))
+                    .font_weight(FontWeight::EXTRA_BOLD)
+                    .child("Библиотека"),
+            )
+            .child(
+                div()
+                    .flex()
+                    .gap(px(16.))
+                    .child(more_link(
+                        "history",
+                        "История",
+                        accent,
+                        self.open(Route::History, cx),
+                    ))
+                    .child(more_link(
+                        "stats",
+                        "Статистика",
+                        accent,
+                        self.open(Route::Stats, cx),
+                    )),
+            );
+
+        let controls = (!self.pin.pinned()).then(|| self.controls(32., accent, window, cx));
 
         let body: AnyElement = match self.lists.get(self.status) {
             None | Some(Load::Pending) => div()
@@ -287,8 +319,7 @@ impl Render for LibraryPage {
             .pt(px(50.))
             .pb(px(72.))
             .child(head)
-            .child(tabs)
-            .child(toolbar)
+            .child(self.pin.slot(controls))
             .child(body)
     }
 }

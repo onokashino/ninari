@@ -24,6 +24,7 @@ use crate::episode_grid::chip;
 use crate::library::swap_layout;
 use crate::library_page::{Open, content_width, grid_columns, more_link};
 use crate::nav::Route;
+use crate::pinned::{self, Pin};
 use crate::player::{Request, clock};
 use crate::posters::poster;
 use crate::text_input::{InputEvent, TextInput};
@@ -88,6 +89,7 @@ pub struct FrameHit {
 pub struct SearchPage {
     core: Arc<Core>,
     input: Entity<TextInput>,
+    pin: Pin,
     focus: FocusHandle,
     /// The query being shown, the input's text a moment after typing stops.
     query: String,
@@ -127,6 +129,7 @@ impl SearchPage {
         let page = Self {
             core,
             input,
+            pin: Pin::default(),
             focus: cx.focus_handle(),
             query: String::new(),
             debounce: None,
@@ -334,6 +337,18 @@ impl SearchPage {
             .gap_y(px(32.))
             .children(cards)
             .into_any_element()
+    }
+
+    /// The search field: in the page, or pinned along the top once the results scroll past it.
+    fn field(&self) -> AnyElement {
+        div()
+            .max_w(px(560.))
+            .child(self.input.clone())
+            .into_any_element()
+    }
+
+    pub fn pinned(&self) -> Option<AnyElement> {
+        self.pin.pinned().then(|| pinned::band(self.field()))
     }
 
     fn frame_section(&self, cx: &mut Context<Self>) -> AnyElement {
@@ -666,6 +681,7 @@ impl Render for SearchPage {
         }
 
         let frame = self.frame_section(cx);
+        let field = (!self.pin.pinned()).then(|| self.field());
         div()
             .id("search-page")
             // A click on the page gives it the keys, so Ctrl+V with a picture searches by it
@@ -707,7 +723,7 @@ impl Render for SearchPage {
                     .font_weight(FontWeight::EXTRA_BOLD)
                     .child("Поиск"),
             )
-            .child(div().max_w(px(560.)).child(self.input.clone()))
+            .child(self.pin.slot(field))
             .child(frame)
             .children(sections)
     }

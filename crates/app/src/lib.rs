@@ -31,6 +31,7 @@ pub mod next_episode;
 pub mod onboarding;
 pub mod palette;
 pub mod people_page;
+pub mod pinned;
 pub mod playback;
 pub mod player;
 pub mod player_panels;

@@ -31,6 +31,7 @@ use crate::lazy_grid::{self, GridTop, lazy_grid, row_height};
 use crate::library_page::{content_width, grid_columns};
 use crate::modal::modal;
 use crate::nav::{PageEvent, Route};
+use crate::pinned::{self, Pin};
 use crate::popover::Menu;
 use crate::select::{SelectOption, select};
 use crate::theme::{self, Accent, EASE};
@@ -102,6 +103,7 @@ struct Pick {
 pub struct CatalogPage {
     core: Arc<Core>,
     grid_top: GridTop,
+    pin: Pin,
     filter: BrowseFilter,
     studio_name: Option<String>,
     /// The season on now, for the collection and the season chip.
@@ -131,6 +133,7 @@ impl CatalogPage {
         let page = Self {
             core,
             grid_top: GridTop::default(),
+            pin: Pin::default(),
             filter: BrowseFilter::default(),
             studio_name: None,
             season: season_at(now()),
@@ -746,6 +749,46 @@ impl CatalogPage {
             .child(div().ml_auto().child(order))
     }
 
+    /// The presets, the filter bar and the open filters: in the page, or pinned along the top.
+    fn controls(
+        &mut self,
+        gap: f32,
+        accent: Hsla,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) -> AnyElement {
+        let preset = preset_of(&self.filter, &self.season);
+        let presets =
+            div()
+                .flex()
+                .flex_wrap()
+                .gap(px(8.))
+                .children(presets(&self.season).into_iter().map(|p| {
+                    let filter = p.filter;
+                    chip(p.key, preset == Some(p.key), accent)
+                        .on_click(cx.listener(move |page, _, _, cx| page.set(filter.clone(), cx)))
+                        .child(p.label)
+                }));
+        let bar = self.bar(accent, window, cx);
+        let filters = self.filters_open.then(|| self.filters(accent, window, cx));
+        div()
+            .flex()
+            .flex_col()
+            .gap(px(gap))
+            .child(presets)
+            .child(bar)
+            .children(filters)
+            .into_any_element()
+    }
+
+    /// The controls pinned along the top once the page has scrolled past them.
+    pub fn pinned(&mut self, window: &mut Window, cx: &mut Context<Self>) -> Option<AnyElement> {
+        let accent = Accent::colors(cx).0;
+        self.pin
+            .pinned()
+            .then(|| pinned::band(self.controls(12., accent, window, cx)))
+    }
+
     fn grid(&self, accent: Hsla, window: &mut Window, cx: &mut Context<Self>) -> AnyElement {
         let (_, card_w) = grid_columns(content_width(window));
         let grid = || div().flex().flex_wrap().gap_x(px(24.)).gap_y(px(32.));
@@ -1119,18 +1162,7 @@ impl Render for CatalogPage {
                 })),
             );
 
-        let preset = preset_of(&self.filter, &self.season);
-        let presets = div().flex().flex_wrap().gap(px(8.)).mt(px(-12.)).children(
-            presets(&self.season).into_iter().map(|p| {
-                let filter = p.filter;
-                chip(p.key, preset == Some(p.key), accent)
-                    .on_click(cx.listener(move |page, _, _, cx| page.set(filter.clone(), cx)))
-                    .child(p.label)
-            }),
-        );
-
-        let bar = self.bar(accent, window, cx);
-        let filters = self.filters_open.then(|| self.filters(accent, window, cx));
+        let controls = (!self.pin.pinned()).then(|| self.controls(32., accent, window, cx));
         let grid = self.grid(accent, window, cx);
         let body = self.pick_body(accent, cx);
         let page = cx.entity().downgrade();
@@ -1158,9 +1190,7 @@ impl Render for CatalogPage {
             .pt(px(50.))
             .pb(px(72.))
             .child(head)
-            .child(presets)
-            .child(bar)
-            .children(filters)
+            .child(div().mt(px(-12.)).child(self.pin.slot(controls)))
             .child(grid)
             .children(dialog)
     }

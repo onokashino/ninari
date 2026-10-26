@@ -635,6 +635,19 @@ impl Render for Root {
         self.glide.step(&scroll, window);
         self.autoscroll.step(&scroll, window);
         let page = self.page(route, window, cx);
+        // The page's controls along the top once it has scrolled past them.
+        let pinned = match route {
+            Route::Catalog => self
+                .catalog
+                .clone()
+                .and_then(|p| p.update(cx, |p, cx| p.pinned(window, cx))),
+            Route::Library => self
+                .library
+                .clone()
+                .and_then(|p| p.update(cx, |p, cx| p.pinned(window, cx))),
+            Route::Search => self.search.clone().and_then(|p| p.read(cx).pinned()),
+            _ => None,
+        };
         let root = root
             .relative()
             .flex()
@@ -660,7 +673,8 @@ impl Render for Root {
                             .child(page),
                     )
                     .child(self.glide.catcher(scroll.clone()))
-                    .child(self.autoscroll.layer()),
+                    .child(self.autoscroll.layer())
+                    .children(pinned),
             )
             .children(self.autoscroll.mark())
             .children(self.palette.clone())
