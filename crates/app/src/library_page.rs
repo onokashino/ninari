@@ -205,9 +205,7 @@ impl LibraryPage {
             )
             .child(self.filters_bar(accent, cx))
             .child(div().ml_auto().child(order));
-
-        // Pinned, the controls stay a slim bar: the open filters are left in the page.
-        let filters = (self.filters_open && !self.pin.pinned()).then(|| self.filters(accent, cx));
+        let filters = self.filters_open.then(|| self.filters(accent, cx));
         div()
             .flex()
             .flex_col()
@@ -223,9 +221,6 @@ impl LibraryPage {
         let toggle = filters_toggle(self.filters_open, count, accent).on_click(cx.listener(
             |page, _, _, cx| {
                 page.filters_open = !page.filters_open;
-                if page.filters_open && page.pin.pinned() {
-                    cx.emit(PageEvent::Top);
-                }
                 cx.notify();
             },
         ));
@@ -369,7 +364,7 @@ impl LibraryPage {
         let accent = Accent::colors(cx).0;
         self.pin
             .pinned()
-            .then(|| pinned::band(self.controls(12., accent, window, cx)))
+            .then(|| pinned::band(self.controls(12., accent, window, cx), window))
     }
 }
 

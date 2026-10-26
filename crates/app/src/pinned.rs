@@ -58,7 +58,10 @@ impl Pin {
 
 /// The panel floating over the top of the page that holds pinned controls, in the look of the
 /// app's other floating things (menus, the hover details): glass, rounded, a soft shadow.
-pub fn band(controls: AnyElement) -> AnyElement {
+pub fn band(controls: AnyElement, window: &gpui::Window) -> AnyElement {
+    // Open filters can be taller than the window: the panel stops short of the bottom and
+    // scrolls inside itself.
+    let tallest = f32::from(window.viewport_size().height) - 80.;
     div()
         .id("pinned")
         .occlude()
@@ -66,7 +69,7 @@ pub fn band(controls: AnyElement) -> AnyElement {
         .top(px(10.))
         .left(px(24.))
         .right(px(24.))
-        .max_h(gpui::relative(0.8))
+        .max_h(px(tallest))
         .overflow_y_scroll()
         .px(px(24.))
         .py(px(12.))

@@ -614,11 +614,6 @@ impl CatalogPage {
         let open = self.filters_open;
         let toggle = filters_toggle(open, count, accent).on_click(cx.listener(|page, _, _, cx| {
             page.filters_open = !page.filters_open;
-            // Pinned, the panel would cover the page with nothing to scroll: the page goes
-            // back up and the filters open in their place.
-            if page.filters_open && page.pin.pinned() {
-                cx.emit(PageEvent::Top);
-            }
             cx.notify();
         }));
         let reset = (count > 0).then(|| {
@@ -708,9 +703,7 @@ impl CatalogPage {
                         .child(p.label)
                 }));
         let bar = self.bar(accent, window, cx);
-        // Pinned, the controls stay a slim bar: the open filters are left in the page.
-        let filters =
-            (self.filters_open && !self.pin.pinned()).then(|| self.filters(accent, window, cx));
+        let filters = self.filters_open.then(|| self.filters(accent, window, cx));
         div()
             .flex()
             .flex_col()
@@ -727,7 +720,7 @@ impl CatalogPage {
         let accent = Accent::colors(cx).0;
         self.pin
             .pinned()
-            .then(|| pinned::band(self.controls(12., accent, window, cx)))
+            .then(|| pinned::band(self.controls(12., accent, window, cx), window))
     }
 
     fn grid(&self, accent: Hsla, window: &mut Window, cx: &mut Context<Self>) -> AnyElement {
