@@ -330,6 +330,12 @@ impl Element for PosterCard {
         window.set_cursor_style(gpui::CursorStyle::PointingHand, &hitbox);
         let hovered = hitbox.is_hovered(window);
         let key = self.key.clone();
+        // The page scrolled the card from under a still pointer: no move tells it, so it settles
+        // down here.
+        if !hovered && motion::is_on(&key, cx) {
+            motion::set(key.clone(), false, Duration::from_millis(380), SPRING, cx);
+            hover_card::hover(&key, false, cx);
+        }
         {
             let hitbox = hitbox.clone();
             window.on_mouse_event(move |_: &MouseMoveEvent, phase, window, cx| {

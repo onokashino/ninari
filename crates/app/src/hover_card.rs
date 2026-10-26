@@ -67,6 +67,19 @@ pub fn hover(key: &ElementId, on: bool, cx: &mut App) {
     }
 }
 
+/// Takes the details away at once: the page scrolled, so the card is no longer under the pointer
+/// though the pointer did not move (the next move finds the card under it again).
+pub fn hide(cx: &mut App) {
+    if let Some(state) = cx.try_global::<HoverCard>()
+        && (state.shown.is_some() || state.over_card.is_some())
+    {
+        let state = cx.default_global::<HoverCard>();
+        state.shown = None;
+        state.over_card = None;
+        state.over_details = false;
+    }
+}
+
 fn hide_later(cx: &mut App) {
     later(HIDE_AFTER, cx, |state| {
         if state.over_card.is_none() && !state.over_details {

@@ -7,8 +7,8 @@ use std::sync::Arc;
 
 use gpui::{
     AnyElement, AnyView, Context, Entity, EventEmitter, FocusHandle, FontWeight, IntoElement,
-    KeyDownEvent, MouseButton, NavigationDirection, Transformation, Window, div, image_cache,
-    prelude::*, px, relative, rgb, rgba, size, svg,
+    KeyDownEvent, MouseButton, NavigationDirection, Pixels, Transformation, Window, div,
+    image_cache, prelude::*, px, relative, rgb, rgba, size, svg,
 };
 use ninari_core::catalog::posters::Palette;
 use ninari_core::error::AppError;
@@ -90,6 +90,8 @@ pub struct Root {
     /// The title page drawn last: it frees its banners once another page is on screen.
     drawn_title: Option<Entity<Title>>,
     random: RandomState,
+    /// The page's scroll on the last frame.
+    last_offset: Option<Pixels>,
 }
 
 impl Root {
@@ -155,6 +157,7 @@ impl Root {
             autoscroll: Autoscroll::default(),
             images,
             drawn_title: None,
+            last_offset: None,
             random: RandomState {
                 filter: random_filter,
                 ..Default::default()
@@ -925,6 +928,15 @@ impl Render for Root {
 
         let scroll = self.history.current().scroll.clone();
         self.glide.step(&scroll, window);
+        // A scroll moves the cards from under a still pointer: their details go.
+        let offset = scroll.offset().y;
+        if self
+            .last_offset
+            .replace(offset)
+            .is_some_and(|last| last != offset)
+        {
+            hover_card::hide(cx);
+        }
         self.autoscroll.step(&scroll, window);
         let page = self.page(route, window, cx);
         let random_bar = self.random_bar(route, cx);

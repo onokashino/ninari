@@ -56,6 +56,13 @@ pub fn set(key: impl Into<ElementId>, on: bool, dur: Duration, curve: Curve, cx:
     );
 }
 
+/// Whether `key` is heading for 1.
+pub fn is_on(key: &ElementId, cx: &App) -> bool {
+    cx.try_global::<Tweens>()
+        .and_then(|t| t.0.get(key))
+        .is_some_and(|t| t.on)
+}
+
 /// The value of `key` this frame; 0 for a key never set.
 pub fn get(key: impl Into<ElementId>, window: &mut Window, cx: &App) -> f32 {
     let Some(tween) = cx.try_global::<Tweens>().and_then(|t| t.0.get(&key.into())) else {
