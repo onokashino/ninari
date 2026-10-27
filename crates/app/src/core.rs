@@ -164,6 +164,32 @@ impl Core {
         let devices = Devices::new(db.clone(), library.clone(), device_name());
         let lan = Lan::new(devices.clone());
         let (devices_tx, devices_rx) = tokio::sync::mpsc::unbounded_channel();
+        {
+            // Changes made on Shikimori and MyAnimeList come here too: a while after the start,
+            // then every half hour; the lists on screen are told as after a sync with a device.
+            let (account, catalog, changed) =
+                (account.clone(), catalog.clone(), devices_tx.clone());
+            rt.spawn(async move {
+                tokio::time::sleep(std::time::Duration::from_secs(90)).await;
+                loop {
+                    let mut n = 0;
+                    for (site, got) in [
+                        ("shikimori", account.pull(&catalog).await),
+                        ("myanimelist", account.mal.pull(&catalog).await),
+                    ] {
+                        match got {
+                            Ok(k) => n += k,
+                            Err(e) => tracing::warn!("{site}: list not taken: {}", e.message),
+                        }
+                    }
+                    if n > 0 {
+                        tracing::info!("lists: {n} titles changed elsewhere");
+                        let _ = changed.send(());
+                    }
+                    tokio::time::sleep(std::time::Duration::from_secs(30 * 60)).await;
+                }
+            });
+        }
         devices.set_on_change(move || {
             let _ = devices_tx.send(());
         });

@@ -205,6 +205,40 @@ impl Library {
         Ok(true)
     }
 
+    /// A change made on Shikimori or MyAnimeList, taken when it is newer than what is here:
+    /// the status, and the first `episodes` marked watched (marks are only ever added). A title
+    /// taken off the list here after that change stays off. Whether anything changed.
+    pub fn take_remote(
+        &self,
+        id: i64,
+        status: &str,
+        episodes: i64,
+        updated_at: i64,
+    ) -> Result<bool, AppError> {
+        let entry = self.get_entry(id)?;
+        if entry.as_ref().is_some_and(|e| e.updated_at >= updated_at) {
+            return Ok(false);
+        }
+        let mut changed = entry.as_ref().is_none_or(|e| e.status != status);
+        let mut conn = self.db.lock().unwrap();
+        let tx = conn.transaction()?;
+        tx.execute(
+            "INSERT INTO library (shikimori_id, status, added_at, updated_at) VALUES (?1, ?2, ?3, ?3)
+             ON CONFLICT(shikimori_id) DO UPDATE SET status = excluded.status, updated_at = excluded.updated_at",
+            params![id, status, updated_at.max(1)],
+        )?;
+        for episode in 1..=episodes {
+            changed |= tx.execute(
+                "INSERT INTO episode_progress (shikimori_id, episode, position_sec, duration_sec, watched, updated_at)
+                 VALUES (?1, ?2, 0, 0, 1, ?3)
+                 ON CONFLICT(shikimori_id, episode) DO UPDATE SET watched = 1 WHERE watched = 0",
+                params![id, episode, updated_at],
+            )? > 0;
+        }
+        tx.commit()?;
+        Ok(changed)
+    }
+
     pub fn remove(&self, id: i64) -> Result<(), AppError> {
         self.upsert_status(id, HIDDEN)
     }
@@ -577,6 +611,26 @@ mod tests {
 
     fn lib() -> Library {
         Library::new(Arc::new(Mutex::new(db::open_in_memory().unwrap())))
+    }
+
+    #[test]
+    fn a_newer_change_from_a_site_is_taken_and_an_older_one_is_not() {
+        let l = lib();
+        // New on the site: added.
+        assert!(l.take_remote(1, "watching", 2, 100).unwrap());
+        assert_eq!(l.get_entry(1).unwrap().unwrap().status, "watching");
+        // The same again: nothing changes.
+        assert!(!l.take_remote(1, "watching", 2, 100).unwrap());
+        // Newer there: completed, episodes added.
+        assert!(l.take_remote(1, "completed", 4, 200).unwrap());
+        assert_eq!(
+            l.progress(1).unwrap().iter().filter(|p| p.watched).count(),
+            4
+        );
+        // Taken off the list here later: an older change there does not bring it back.
+        l.clear_list().unwrap();
+        assert!(!l.take_remote(1, "completed", 4, 200).unwrap());
+        assert!(l.list(None).unwrap().is_empty());
     }
 
     #[test]

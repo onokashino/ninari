@@ -247,7 +247,7 @@ impl Render for ShikimoriPane {
                 .child(setting_row(
                     setting_text(
                         "Вход выполнен",
-                        "Статусы, просмотренные серии, оценки и заметки отсюда уходят в твой список на Shikimori.",
+                        "Список синхронизируется в обе стороны: изменения отсюда уходят на Shikimori сразу, оттуда приходят раз в полчаса.",
                     )
                     .child(div().font_weight(gpui::FontWeight::BOLD).child(p.nickname.clone())),
                     button("sign-out", "Выйти", None, Variant::Glass, Size::M, accent)
@@ -288,7 +288,7 @@ impl Render for ShikimoriPane {
                         if self.signing_in {
                             "Подтверди вход в открывшемся браузере."
                         } else {
-                            "Откроется браузер. После входа статусы, серии и оценки будут попадать и в список на Shikimori."
+                            "Откроется браузер. После входа список здесь и на Shikimori будет одним: статусы, серии и оценки в обе стороны."
                         },
                     ),
                     control,

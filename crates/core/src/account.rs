@@ -426,6 +426,46 @@ impl Account {
             .map_err(|e| AppError::new("Network", e.to_string()))
     }
 
+    /// Takes what changed in the list on Shikimori since it changed here (`Library::take_remote`);
+    /// how many titles changed. Nothing when signed out.
+    pub async fn pull(&self, catalog: &crate::catalog::Catalog) -> Result<usize, AppError> {
+        if self.session().is_none() {
+            return Ok(0);
+        }
+        let mut rates = Vec::new();
+        {
+            let _turn = self.turn.lock().await;
+            let (token, me) = self.access().await?;
+            for page in 1.. {
+                let body = self
+                    .call(
+                        &token,
+                        reqwest::Method::GET,
+                        &format!("/api/users/{}/anime_rates?limit=5000&page={page}", me.id),
+                        None,
+                    )
+                    .await?;
+                let full = body.as_array().is_some_and(|l| l.len() >= 5000);
+                rates.extend(crate::sync::parse_rates(&body.to_string())?);
+                if !full {
+                    break;
+                }
+            }
+        }
+        let mut changed = Vec::new();
+        for r in &rates {
+            if self
+                .library
+                .take_remote(r.anime_id, r.status, r.episodes, r.updated_at)?
+            {
+                changed.push(r.anime_id);
+            }
+        }
+        // The library shows titles from the catalog cache.
+        catalog.get_many(&changed).await?;
+        Ok(changed.len())
+    }
+
     /// Sends what the library says about a title to the list on Shikimori, in the background.
     /// Does nothing when signed out or when the same was already sent. Call it on the core's
     /// runtime.

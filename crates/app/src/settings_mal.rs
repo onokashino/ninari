@@ -158,7 +158,7 @@ impl Render for MalPane {
                         if self.signing_in {
                             "Подтверди вход в открывшемся браузере."
                         } else {
-                            "Откроется браузер. После входа статусы, серии и оценки будут попадать и в список на MyAnimeList, а его можно будет перенести сюда."
+                            "Откроется браузер. После входа список здесь и на MyAnimeList будет одним: статусы, серии и оценки в обе стороны."
                         },
                     ),
                     control,
@@ -169,7 +169,7 @@ impl Render for MalPane {
         out.child(setting_row(
             setting_text(
                 "Вход выполнен",
-                "Статусы, просмотренные серии и оценки отсюда уходят в твой список на MyAnimeList.",
+                "Список синхронизируется в обе стороны: изменения отсюда уходят на MyAnimeList сразу, оттуда приходят раз в полчаса.",
             )
             .child(div().font_weight(gpui::FontWeight::BOLD).child(p.nickname.clone())),
             button("mal-sign-out", "Выйти", None, Variant::Glass, Size::M, accent)

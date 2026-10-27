@@ -401,8 +401,8 @@ impl Mal {
         Ok(())
     }
 
-    /// Adds the titles of the user's list there that the library does not have yet.
-    pub async fn import(&self, catalog: &Catalog) -> Result<ImportReport, AppError> {
+    /// The whole list there: (id, status, episodes, changed at).
+    async fn list(&self) -> Result<Vec<(i64, &'static str, i64, i64)>, AppError> {
         let mut rates = Vec::new();
         {
             let _turn = self.turn.lock().await;
@@ -415,6 +415,28 @@ impl Mal {
                 next = page["paging"]["next"].as_str().map(str::to_string);
             }
         }
+        Ok(rates)
+    }
+
+    /// Takes what changed in the list there since it changed here (`Library::take_remote`); how
+    /// many titles changed. Nothing when signed out.
+    pub async fn pull(&self, catalog: &Catalog) -> Result<usize, AppError> {
+        if self.session().is_none() {
+            return Ok(0);
+        }
+        let mut changed = Vec::new();
+        for (id, status, episodes, at) in self.list().await? {
+            if self.library.take_remote(id, status, episodes, at)? {
+                changed.push(id);
+            }
+        }
+        catalog.get_many(&changed).await?;
+        Ok(changed.len())
+    }
+
+    /// Adds the titles of the user's list there that the library does not have yet.
+    pub async fn import(&self, catalog: &Catalog) -> Result<ImportReport, AppError> {
+        let rates = self.list().await?;
         // Titles the library shows must be in the catalog cache.
         let ids: Vec<i64> = rates.iter().map(|r| r.0).collect();
         catalog.get_many(&ids).await?;
