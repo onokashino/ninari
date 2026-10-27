@@ -39,6 +39,7 @@ pub mod playback;
 pub mod player;
 pub mod player_panels;
 pub mod popover;
+pub mod poster_view;
 pub mod posters;
 pub mod rail;
 pub mod random;

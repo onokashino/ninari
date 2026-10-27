@@ -168,6 +168,8 @@ pub struct Title {
     video_rows: [Row; 2],
     /// "Ещё" under the facts is open, and the height of what it hides.
     about_open: bool,
+    /// The poster open over the whole window.
+    poster: Option<crate::poster_view::PosterView>,
     about_h: Rc<Cell<Pixels>>,
     /// Where the header's buttons were last drawn: the slim bar shows once they are gone.
     actions_bounds: Rc<Cell<Bounds<Pixels>>>,
@@ -226,6 +228,7 @@ impl Title {
             video_rows: Default::default(),
             actions_bounds: Rc::default(),
             about_open: false,
+            poster: None,
             about_h: Rc::default(),
             hovered_score: None,
         };
@@ -478,6 +481,27 @@ impl Title {
             palette: poster(card, cx).map(|(_, p)| p).unwrap_or_default(),
         };
         cx.emit(TitleEvent::Play(request));
+    }
+
+    /// The poster over the whole window: the card's picture at once, the uploaded one when in.
+    fn open_poster(&mut self, id: i64, small: Option<String>, cx: &mut Context<Self>) {
+        if let Some(path) = small {
+            self.poster = Some(crate::poster_view::PosterView::new(path.into()));
+        }
+        let job = crate::poster_view::load_full(&self.core, id);
+        cx.spawn(async move |page, cx| {
+            let Ok(Some(full)) = job.await else { return };
+            page.update(cx, |page, cx| {
+                match &mut page.poster {
+                    Some(v) => v.sharpen(full),
+                    None => page.poster = Some(crate::poster_view::PosterView::new(full)),
+                }
+                cx.notify();
+            })
+            .ok();
+        })
+        .detach();
+        cx.notify();
     }
 
     fn open(&self, route: Route, cx: &mut Context<Self>) -> OnClick {
@@ -1372,15 +1396,23 @@ impl Render for Title {
 
         let card = self.card().cloned();
         let cover = match &card {
-            Some(c) => poster_frame(c, px(220.), theme::R_M, cx)
-                .shadow(vec![BoxShadow {
-                    color: glow.opacity(0.8),
-                    offset: point(px(0.), px(30.)),
-                    blur_radius: px(80.),
-                    spread_radius: px(0.),
-                    inset: false,
-                }])
-                .into_any_element(),
+            Some(c) => {
+                let (id, small) = (c.anime.id, c.poster_path.clone());
+                poster_frame(c, px(220.), theme::R_M, cx)
+                    .id("cover")
+                    .cursor_pointer()
+                    .on_click(
+                        cx.listener(move |page, _, _, cx| page.open_poster(id, small.clone(), cx)),
+                    )
+                    .shadow(vec![BoxShadow {
+                        color: glow.opacity(0.8),
+                        offset: point(px(0.), px(30.)),
+                        blur_radius: px(80.),
+                        spread_radius: px(0.),
+                        inset: false,
+                    }])
+                    .into_any_element()
+            }
             None => div()
                 .flex_none()
                 .w(px(220.))
@@ -1659,6 +1691,9 @@ impl Render for Title {
                 similar.map(|v| div().opacity(rest).child(v).into_any_element()),
             ))
             .children(sticky)
+            .children(self.poster.as_ref().map(|v| {
+                crate::poster_view::render(|page: &mut Self| &mut page.poster, v, window, cx)
+            }))
     }
 }
 

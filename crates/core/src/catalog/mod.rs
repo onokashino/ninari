@@ -337,6 +337,21 @@ impl Catalog {
         Ok(resp.body)
     }
 
+    /// The title's poster as it was uploaded, larger than the one cards show: for looking at it
+    /// whole.
+    pub async fn poster_original(&self, id: i64) -> Result<Option<String>, AppError> {
+        let body = self
+            .query_raw(
+                "query ($ids: String) { animes(ids: $ids) { poster { originalUrl } } }",
+                json!({ "ids": id.to_string() }),
+            )
+            .await?;
+        let v: serde_json::Value = serde_json::from_str(&body)?;
+        Ok(v["data"]["animes"][0]["poster"]["originalUrl"]
+            .as_str()
+            .map(String::from))
+    }
+
     /// Source, season, rating, key people and characters of a title.
     pub async fn details_raw(&self, id: i64) -> Result<details::RawDetails, AppError> {
         let body = self
