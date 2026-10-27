@@ -1818,19 +1818,29 @@ impl Title {
         };
         let episode = cont.map_or(1, |c| c.episode);
         let can_play = self.dub_key().is_some();
-        let width = window.viewport_size().width - px(rail::WIDTH);
+        // A floating island like the catalog's pinned controls, sliding down into place.
+        let width = window.viewport_size().width - px(rail::WIDTH + 48.);
         let bar = div()
             .occlude()
             .w(width)
             .h(px(HEIGHT))
-            .px(px(48.))
+            .pl(px(12.))
+            .pr(px(10.))
             .flex()
             .items_center()
             .gap(px(12.))
-            // Nearly opaque: there is no blur behind it.
-            .bg(rgba(0x101117f0))
-            .border_b_1()
+            .rounded(theme::R_L)
+            // GPUI cannot blur what lies under an element: dense enough not to need it.
+            .bg(rgba((theme::INK << 8) | 0xf6))
+            .border_1()
             .border_color(theme::line())
+            .shadow(vec![BoxShadow {
+                color: rgba(0x00000080).into(),
+                offset: point(px(0.), px(12.)),
+                blur_radius: px(32.),
+                spread_radius: px(-8.),
+                inset: false,
+            }])
             .opacity(shown.min(1.))
             .child(poster_frame(card, px(30.), px(6.), cx))
             .child(
@@ -1864,7 +1874,7 @@ impl Title {
             deferred(
                 anchored()
                     .position_mode(AnchoredPositionMode::Window)
-                    .position(point(px(rail::WIDTH), px(0.)))
+                    .position(point(px(rail::WIDTH + 24.), px(10. - 8. * (1. - shown))))
                     .child(bar),
             )
             .into_any_element(),
