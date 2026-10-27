@@ -1,0 +1,52 @@
+# Runs the tests on every push to master and every pull request: the core and the app on the same
+# Arch the releases are built on, and the plugins without the tests that go out to real sites
+# ("(live)": those depend on what the sites answer today and run by hand).
+name: test
+
+on:
+  push:
+    branches: [master]
+    paths: ["crates/**", "extensions/**", ".github/workflows/test.yml"]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: test-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  rust:
+    runs-on: ubuntu-24.04
+    container: archlinux:latest
+    env:
+      CARGO_TARGET_DIR: ${{ github.workspace }}/target
+    steps:
+      - name: Packages
+        run: |
+          pacman -Syu --noconfirm --needed \
+            base-devel clang git rustup \
+            mpv libxkbcommon-x11 wayland vulkan-icd-loader vulkan-headers fontconfig alsa-lib
+          rustup default stable
+
+      - uses: actions/checkout@v4
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: crates/app -> ../../target
+
+      - name: Core
+        run: cargo test --manifest-path crates/core/Cargo.toml
+
+      - name: App
+        run: cargo test --manifest-path crates/app/Cargo.toml
+
+  plugins:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+
+      - name: Tests
+        working-directory: extensions
+        run: bun test --test-name-pattern '^(?!.*\(live\))'
