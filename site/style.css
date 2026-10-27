@@ -1097,56 +1097,51 @@ code {
   }
 }
 
-/* ---------- the story: a pinned window beside steps that scroll ----------
-   Without JS, on narrow screens or with reduced motion, every step shows its own picture and the
-   pinned window stays hidden: the page reads the same, just as a column. */
+/* ---------- features: text beside its picture, every other row the other way round ---------- */
 
 .kicker {
   margin: 0;
-  color: var(--story-tint, var(--accent));
+  color: var(--accent);
   font-size: 13px;
   font-weight: 800;
   letter-spacing: 0.14em;
   text-transform: uppercase;
 }
 
-.story {
-  display: grid;
-  grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
-  gap: 56px;
-  align-items: start;
-}
-
 .story-steps {
   display: flex;
   flex-direction: column;
-  gap: 96px;
+  gap: clamp(72px, 10vw, 128px);
 }
 
 .story-step {
+  display: grid;
+  grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
+  gap: 56px;
+  align-items: center;
+}
+
+.story-step:nth-child(even) .story-text {
+  order: 2;
+}
+
+.story-text {
   display: flex;
   flex-direction: column;
   gap: 18px;
 }
 
-.story-step > p:not(.kicker) {
+.story-text > p:not(.kicker) {
   color: var(--text-2);
 }
 
 .story-inline {
-  margin: 8px 0 0;
+  margin: 0;
 }
 
-.story-inline .panel {
-  justify-self: start;
-}
-
-.story-pin {
-  display: none;
-}
-
-.story-live .story {
-  grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
+.story-inline:has(.panel) {
+  display: grid;
+  place-items: center;
 }
 
 .story .chips li {
@@ -1155,160 +1150,14 @@ code {
   font-size: 13px;
 }
 
-.story-live .story-steps {
-  gap: 0;
-  padding: 0 0 12vh;
-}
-
-/* Each step a screen tall, its text level with the window's middle. */
-main > section.story {
-  padding-top: 0;
-}
-
-.story-live .story-step {
-  min-height: 100vh;
-  padding-top: 72px;
-  justify-content: center;
-  opacity: 0.28;
-  transform: translateY(18px);
-  transition:
-    opacity 500ms var(--ease),
-    transform 700ms var(--ease);
-}
-
-.story-live .story-step.on {
-  opacity: 1;
-  transform: none;
-}
-
-.story-live .story-inline {
-  display: none;
-}
-
-/* A stage as tall as the screen stays put while the steps scroll; the window sits in its middle,
-   below the header, so the section's start covers nothing above it. */
-.story-live .story-pin {
-  display: flex;
-  align-items: center;
-  position: sticky;
-  top: 0;
-  height: 100vh;
-  padding-top: 72px;
-}
-
-.story-stage {
-  position: relative;
-  width: 100%;
-  isolation: isolate;
-}
-
-.story-glow {
-  position: absolute;
-  z-index: -1;
-  inset: -12% -8%;
-  border-radius: 50%;
-  background: radial-gradient(closest-side, color-mix(in oklch, var(--story-tint, var(--accent)) 38%, transparent), transparent);
-  filter: blur(30px);
-  transition: background 900ms var(--ease);
-}
-
-.story-frame {
-  position: relative;
-  aspect-ratio: 16 / 10;
-}
-
-.story-frame > img,
-.story-frame > div {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  opacity: 0;
-  transform: scale(1.05);
-  transition:
-    opacity 700ms var(--ease),
-    transform 1200ms var(--ease);
-}
-
-.story-frame > img {
-  object-fit: cover;
-  object-position: top left;
-}
-
-.story-frame > .on {
-  opacity: 1;
-  transform: none;
-}
-
-/* The player has no picture of its own: its panel over the title page, dimmed like the player's. */
-.story-player {
-  display: grid;
-  place-items: center;
-}
-
-.story-player img {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  object-position: top left;
-  filter: brightness(0.32) blur(2px);
-}
-
-.story-player .panel {
-  position: relative;
-  transform: scale(0.64);
-}
-
-.story-dots {
-  position: absolute;
-  top: 50%;
-  left: -26px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  translate: 0 -50%;
-}
-
-.story-dots i {
-  width: 6px;
-  height: 6px;
-  border-radius: 3px;
-  background: rgb(255 255 255 / 0.2);
-  transition:
-    height 400ms var(--ease),
-    background 400ms var(--ease);
-}
-
-.story-dots i.on {
-  height: 26px;
-  background: var(--story-tint, var(--accent));
-}
-
 @media (max-width: 900px) {
-  .story,
-  .story-live .story {
-    grid-template-columns: 1fr;
+  .story-step {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 28px;
   }
 
-  .story-live .story-steps {
-    gap: 72px;
-    padding: 0;
-  }
-
-  .story-live .story-step {
-    min-height: 0;
-    opacity: 1;
-    transform: none;
-  }
-
-  .story-live .story-inline {
-    display: block;
-  }
-
-  .story-live .story-pin {
-    display: none;
+  .story-step:nth-child(even) .story-text {
+    order: 0;
   }
 }
 
@@ -1600,34 +1449,6 @@ main > section.faq {
     opacity 200ms var(--ease);
 }
 
-.lang {
-  display: flex;
-  padding: 3px;
-  border-radius: 11px;
-  background: var(--glass);
-}
-
-.lang a {
-  padding: 5px 9px;
-  border-radius: 8px;
-  color: var(--text-3);
-  font-size: 12px;
-  font-weight: 800;
-  text-decoration: none;
-  transition:
-    color 200ms var(--ease),
-    background 200ms var(--ease);
-}
-
-.lang a:hover {
-  color: var(--text);
-}
-
-.lang a[aria-current] {
-  background: var(--glass-strong);
-  color: var(--text);
-}
-
 .menu-toggle {
   display: none;
   place-content: center;
@@ -1715,58 +1536,6 @@ main > section.faq {
   .bar-end .button.small {
     display: none;
   }
-}
-
-/* ---------- the scrollbar: drawn by the page, the browser's one hidden ---------- */
-
-html.own-scrollbar {
-  scrollbar-width: none;
-}
-
-html.own-scrollbar::-webkit-scrollbar {
-  display: none;
-}
-
-.scrollbar {
-  display: none;
-}
-
-.own-scrollbar .scrollbar {
-  position: fixed;
-  z-index: 30;
-  top: 6px;
-  right: 3px;
-  bottom: 6px;
-  display: block;
-  width: 12px;
-  opacity: 0;
-  transition: opacity 400ms var(--ease);
-}
-
-.own-scrollbar .scrollbar.shown,
-.own-scrollbar .scrollbar:hover {
-  opacity: 1;
-}
-
-.scrollbar i {
-  position: absolute;
-  top: 0;
-  right: 2px;
-  width: 5px;
-  border-radius: 999px;
-  background: linear-gradient(180deg, var(--accent), color-mix(in oklch, var(--accent) 55%, var(--stamp)));
-  box-shadow: 0 0 12px color-mix(in oklch, var(--accent) 50%, transparent);
-  cursor: grab;
-  transition: width 200ms var(--ease);
-}
-
-.scrollbar:hover i,
-.scrollbar.dragging i {
-  width: 8px;
-}
-
-.scrollbar.dragging i {
-  cursor: grabbing;
 }
 
 /* ---------- pages: a centred head, platforms ---------- */
@@ -2227,9 +1996,7 @@ kbd {
 }
 
 @media (max-width: 900px) {
-  .hero,
-  .story,
-  .story-live .story {
+  .hero {
     grid-template-columns: minmax(0, 1fr);
   }
 }

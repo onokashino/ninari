@@ -1,5 +1,5 @@
-// Builds the site into dist/: the pages of src/pages and the docs of src/docs, in Russian at the
-// root and in English under en/, with one header, footer and docs layout for all of them.
+// Builds the site into dist/: the pages of src/pages and the docs of src/docs, in Russian, with one
+// header, footer and docs layout for all of them.
 //
 //   bun site/build.ts          (from anywhere)
 //
@@ -14,8 +14,8 @@ const REPO = "https://github.com/onokashino/ninari";
 /** Where GitHub Pages serves the site: link previews need full addresses. */
 const SITE_URL = "https://onokashino.github.io/ninari/";
 
-type Lang = "ru" | "en";
-const LANGS: Lang[] = ["ru", "en"];
+type Lang = "ru";
+const LANGS: Lang[] = ["ru"];
 
 const T = {
   ru: {
@@ -28,8 +28,6 @@ const T = {
     download: "Скачать",
     github: "ninari на GitHub",
     menu: "Меню",
-    language: "Язык",
-    other: "English",
     issues: "Сообщить о проблеме",
     guide: "Пользователям",
     dev: "Разработчикам",
@@ -39,27 +37,7 @@ const T = {
     edit: "Исправить на GitHub",
     docsTitle: "Документация ninari",
   },
-  en: {
-    home: "ninari, home",
-    sections: "Sections",
-    features: "Features",
-    plugins: "Plugins",
-    docs: "Docs",
-    faq: "FAQ",
-    download: "Download",
-    github: "ninari on GitHub",
-    menu: "Menu",
-    language: "Language",
-    other: "Русский",
-    issues: "Report a problem",
-    guide: "Using ninari",
-    dev: "Developers",
-    onPage: "On this page",
-    prev: "Previous",
-    next: "Next",
-    edit: "Edit on GitHub",
-    docsTitle: "ninari docs",
-  },
+
 } as const;
 
 const GITHUB_ICON =
@@ -81,16 +59,14 @@ interface Shell {
 
 /** "../" as many times as the page sits below the site's root. */
 function rootOf(lang: Lang, path: string): string {
-  const depth = path.split("/").length - 1 + (lang === "en" ? 1 : 0);
+  const depth = path.split("/").length - 1;
   return "../".repeat(depth);
 }
 
 function shell(p: Shell): string {
   const t = T[p.lang];
   const root = rootOf(p.lang, p.path);
-  const here = p.lang === "en" ? `${root}en/` : root;
-  const otherLang: Lang = p.lang === "ru" ? "en" : "ru";
-  const other = otherLang === "en" ? `${root}en/${p.path}` : `${root}${p.path}`;
+  const here = root;
   const cur = (key: string) => (p.current === key ? ' aria-current="page"' : "");
   const links = [
     [`${here}index.html#features`, t.features, ' data-spy="features"'],
@@ -110,14 +86,14 @@ function shell(p: Shell): string {
     <meta property="og:site_name" content="ninari" />
     <meta property="og:title" content="${p.title}" />
     <meta property="og:description" content="${p.description}" />
-    <meta property="og:url" content="${SITE_URL}${p.lang === "en" ? "en/" : ""}${urlOf(p.path)}" />
-    <meta property="og:image" content="${SITE_URL}assets/${p.lang === "en" ? "og-en" : "og"}.png" />
+    <meta property="og:url" content="${SITE_URL}${urlOf(p.path)}" />
+    <meta property="og:image" content="${SITE_URL}assets/og.png" />
     <meta property="og:image:width" content="1280" />
     <meta property="og:image:height" content="640" />
-    <meta property="og:locale" content="${p.lang === "en" ? "en_US" : "ru_RU"}" />
+    <meta property="og:locale" content="ru_RU" />
     <meta name="twitter:card" content="summary_large_image" />
     <link rel="icon" href="${root}assets/favicon.svg" type="image/svg+xml" />
-    <link rel="alternate" hreflang="${otherLang}" href="${other}" />
+    <link rel="canonical" href="${SITE_URL}${urlOf(p.path)}" />
     <link rel="preload" href="${root}assets/fonts/manrope-cyrillic-wght-normal.woff2" as="font" type="font/woff2" crossorigin />
     <link rel="stylesheet" href="${root}style.css" />
     <script>
@@ -137,13 +113,6 @@ function shell(p: Shell): string {
           ${links.map(([href, label, extra]) => `<a href="${href}"${extra}>${label}</a>`).join("\n          ")}
         </nav>
         <div class="bar-end">
-          <div class="lang" aria-label="${t.language}">
-            ${
-              p.lang === "ru"
-                ? `<a aria-current="true">RU</a><a href="${other}" lang="en" hreflang="en">EN</a>`
-                : `<a href="${other}" lang="ru" hreflang="ru">RU</a><a aria-current="true">EN</a>`
-            }
-          </div>
           <a class="icon-link" href="${REPO}" aria-label="${t.github}">${GITHUB_ICON}</a>
           <a class="button small" href="${here}download.html">${t.download}</a>
           <button class="menu-toggle" type="button" aria-expanded="false" aria-controls="menu" aria-label="${t.menu}"><i></i><i></i></button>
@@ -153,7 +122,6 @@ function shell(p: Shell): string {
         ${links.map(([href, label]) => `<a href="${href}">${label}</a>`).join("\n        ")}
         <a href="${here}download.html">${t.download}</a>
         <a href="${REPO}">GitHub</a>
-        <a href="${other}" lang="${otherLang}" hreflang="${otherLang}">${t.other}</a>
       </nav>
     </header>
 
@@ -167,7 +135,6 @@ ${p.body.replaceAll("{{root}}", root).replaceAll("{{here}}", here).replaceAll("{
       <a href="${REPO}">GitHub</a>
       <a href="${REPO}/issues">${t.issues}</a>
     </footer>
-    <div class="scrollbar" aria-hidden="true"><i></i></div>
   </body>
 </html>
 `;
@@ -412,7 +379,7 @@ function prettyLinks(html: string, page: string): string {
 }
 
 function write(lang: Lang, path: string, html: string) {
-  const page = (lang === "en" ? "en/" : "") + path;
+  const page = path;
   const file = join(DIST, outFile(page));
   mkdirSync(dirname(file), { recursive: true });
   writeFileSync(file, prettyLinks(html, page));
@@ -436,6 +403,12 @@ for (const lang of LANGS) {
     pages++;
   }
 }
+// The English pages are gone: their old addresses lead to the Russian home page.
+mkdirSync(join(DIST, "en"), { recursive: true });
+writeFileSync(
+  join(DIST, "en", "index.html"),
+  `<!doctype html><meta charset="utf-8"><meta http-equiv="refresh" content="0; url=../"><link rel="canonical" href="${SITE_URL}"><title>ninari</title>`,
+);
 // GitHub Pages serves the folder as is: no Jekyll.
 writeFileSync(join(DIST, ".nojekyll"), "");
 if (!existsSync(join(DIST, "index.html"))) throw new Error("no index.html");

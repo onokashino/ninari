@@ -18,13 +18,14 @@
           <p class="fine" data-release-meta>Linux и Windows · бесплатно · открытый код. macOS в работе.</p>
         </div>
         <figure class="window hero-shot" data-tilt>
-          <img src="{{root}}assets/shots/home.webp" alt="Главная ninari: продолжить серию, что смотрю сейчас и что выходит сегодня" width="1440" height="900" />
+          <img src="{{root}}assets/shots/home.webp" alt="Главная ninari: продолжить серию, что смотрю сейчас и что выходит сегодня" width="1440" height="900" fetchpriority="high" />
         </figure>
       </section>
 
       <section class="story" id="features" aria-label="Возможности">
         <div class="story-steps">
-          <article class="story-step" id="dubs" data-glow="#6fc3c9">
+          <article class="story-step" id="dubs">
+            <div class="story-text">
             <p class="kicker">Тайтл</p>
             <h2>Одна серия, все озвучки</h2>
             <p>Каждый источник сразу, лучшее качество сверху. У «Фрирен» таких 39.</p>
@@ -36,10 +37,12 @@
               <li><span>AniLibria</span><b class="q hd">1080p</b><i>28 из 28</i></li>
               <li class="more"><span>и ещё <b data-count="34">34</b> <span data-plural="озвучка,озвучки,озвучек">озвучки</span></span></li>
             </ul>
-            <figure class="window story-inline"><img src="{{root}}assets/shots/title.webp" alt="Страница тайтла: сезоны и серии" width="1440" height="900" loading="lazy" /></figure>
+            </div>
+            <figure class="window story-inline" data-reveal><img src="{{root}}assets/shots/title.webp" alt="Страница тайтла: сезоны и серии" width="1440" height="900" loading="lazy" decoding="async" /></figure>
           </article>
 
-          <article class="story-step" id="player" data-glow="#b9a3ff">
+          <article class="story-step" id="player">
+            <div class="story-text">
             <p class="kicker">Плеер</p>
             <h2>Картинка лучше, чем в источнике</h2>
             <ul class="points">
@@ -47,6 +50,7 @@
               <li><b>Звук.</b> Ровная громкость, чёткие голоса, ночной режим.</li>
               <li><b>Пропуски.</b> Опенинги, эндинги и филлеры.</li>
             </ul>
+            </div>
             <div class="story-inline"><div class="panel" aria-hidden="true">
           <p class="panel-title">Улучшение</p>
           <div class="row"><span>Метод</span><span class="seg"><i class="on">Anime4K</i><i>ArtCNN</i></span></div>
@@ -61,7 +65,8 @@
         </div></div>
           </article>
 
-          <article class="story-step" data-glow="#e7c07a">
+          <article class="story-step">
+            <div class="story-text">
             <p class="kicker">Каталог</p>
             <h2>Есть что посмотреть</h2>
             <ul class="points">
@@ -69,10 +74,12 @@
               <li><b>Поиск по кадру.</b> Вставь скриншот, получи тайтл и серию.</li>
               <li><b>Ctrl+K.</b> Всё с клавиатуры.</li>
             </ul>
-            <figure class="window story-inline"><img src="{{root}}assets/shots/catalog.webp" alt="Каталог ninari" width="1440" height="900" loading="lazy" /></figure>
+            </div>
+            <figure class="window story-inline" data-reveal><img src="{{root}}assets/shots/catalog.webp" alt="Каталог ninari" width="1440" height="900" loading="lazy" decoding="async" /></figure>
           </article>
 
-          <article class="story-step" data-glow="#ee7a8a">
+          <article class="story-step">
+            <div class="story-text">
             <p class="kicker">Расписание</p>
             <h2>Ничего не пропустишь</h2>
             <ul class="points">
@@ -80,33 +87,11 @@
               <li><b>Shikimori.</b> Список обновляется там же.</li>
               <li><b>Свои устройства.</b> Прогресс синхронизируется по домашней сети.</li>
             </ul>
-            <figure class="window story-inline"><img src="{{root}}assets/shots/schedule.webp" alt="Расписание ninari" width="1440" height="900" loading="lazy" /></figure>
+            </div>
+            <figure class="window story-inline" data-reveal><img src="{{root}}assets/shots/schedule.webp" alt="Расписание ninari" width="1440" height="900" loading="lazy" decoding="async" /></figure>
           </article>
         </div>
 
-        <div class="story-pin" aria-hidden="true">
-          <div class="story-stage">
-          <div class="story-glow"></div>
-          <div class="story-dots"><i></i><i></i><i></i><i></i></div>
-          <div class="window story-frame">
-            <img src="{{root}}assets/shots/title.webp" alt="" width="1440" height="900" />
-            <div class="story-player"><img src="{{root}}assets/shots/title.webp" alt="" width="1440" height="900" loading="lazy" /><div class="panel" aria-hidden="true">
-          <p class="panel-title">Улучшение</p>
-          <div class="row"><span>Метод</span><span class="seg"><i class="on">Anime4K</i><i>ArtCNN</i></span></div>
-          <div class="row"><span>Режим</span><span class="seg"><i class="on">Авто</i><i>A</i><i>B</i><i>C</i></span></div>
-          <div class="row"><span>Нагрузка</span><span class="seg"><i>Fast</i><i class="on">HQ</i><i>Ultra</i></span></div>
-          <p class="panel-title">Звук и серии</p>
-          <div class="row"><span>Ровная громкость</span><span class="toggle on"></span></div>
-          <div class="row"><span>Чёткие голоса</span><span class="toggle on"></span></div>
-          <div class="row"><span>Ночной режим</span><span class="toggle"></span></div>
-          <div class="row"><span>Пропускать опенинги</span><span class="toggle on"></span></div>
-          <div class="row"><span>Пропускать филлеры</span><span class="toggle"></span></div>
-        </div></div>
-            <img src="{{root}}assets/shots/catalog.webp" alt="" width="1440" height="900" loading="lazy" />
-            <img src="{{root}}assets/shots/schedule.webp" alt="" width="1440" height="900" loading="lazy" />
-          </div>
-          </div>
-        </div>
       </section>
 
       <section class="how" id="how" aria-labelledby="how-h">

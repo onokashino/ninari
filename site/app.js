@@ -1,13 +1,10 @@
-// ninari site: motion that answers scrolling and the pointer, and the live data of the download
-// and plugins pages. Every page reads in full without this file.
+// ninari site: entrances as blocks come into view, the header, and the live data of the download
+// and plugins pages. Scrolling is the browser's own. Every page reads in full without this file.
 
 const REGISTRY = "https://raw.githubusercontent.com/onokashino/ninari/master/extensions/dist/index.json";
 const RELEASES = "https://api.github.com/repos/onokashino/ninari/releases/latest";
 const calm = matchMedia("(prefers-reduced-motion: reduce)").matches;
-const EN = document.documentElement.lang === "en";
-const TEXT = EN
-  ? { copy: "Copy", copied: "Copied", failed: "Couldn't copy", source: "A source of episodes." }
-  : { copy: "Копировать", copied: "Скопировано", failed: "Не получилось", source: "Источник серий." };
+const TEXT = { copy: "Копировать", copied: "Скопировано", failed: "Не получилось", source: "Источник серий." };
 
 function plural(n, [one, few, many]) {
   const m10 = n % 10;
@@ -132,63 +129,6 @@ function setupNav() {
   }
 }
 
-/** The page's own scrollbar: a thin thumb in the accent that shows while the page moves or under
- *  the pointer, and can be dragged or clicked along its track. The browser's bar is hidden only
- *  when this one runs. */
-function setupScrollbar() {
-  const bar = document.querySelector(".scrollbar");
-  const thumb = bar?.querySelector("i");
-  if (!thumb || !matchMedia("(pointer: fine)").matches) return;
-  document.documentElement.classList.add("own-scrollbar");
-  let hideAt = 0;
-  const geometry = () => {
-    const doc = document.documentElement.scrollHeight;
-    const track = bar.clientHeight;
-    const size = Math.max(40, (innerHeight / doc) * track);
-    return { doc, track, size, room: track - size, scrollable: doc - innerHeight };
-  };
-  const draw = () => {
-    const g = geometry();
-    bar.hidden = g.scrollable <= 0;
-    thumb.style.height = `${g.size}px`;
-    thumb.style.translate = `0 ${g.scrollable > 0 ? (scrollY / g.scrollable) * g.room : 0}px`;
-  };
-  const show = () => {
-    bar.classList.add("shown");
-    clearTimeout(hideAt);
-    hideAt = setTimeout(() => bar.classList.remove("shown"), 1200);
-  };
-  addEventListener("scroll", () => (draw(), show()), { passive: true });
-  addEventListener("resize", draw);
-  new ResizeObserver(draw).observe(document.body);
-  draw();
-
-  let grab = null;
-  thumb.addEventListener("pointerdown", (e) => {
-    e.preventDefault();
-    thumb.setPointerCapture(e.pointerId);
-    grab = { y: e.clientY, top: scrollY };
-    bar.classList.add("dragging");
-  });
-  thumb.addEventListener("pointermove", (e) => {
-    if (!grab) return;
-    const g = geometry();
-    scrollTo({ top: grab.top + ((e.clientY - grab.y) / g.room) * g.scrollable, behavior: "instant" });
-  });
-  const release = () => {
-    grab = null;
-    bar.classList.remove("dragging");
-  };
-  thumb.addEventListener("pointerup", release);
-  thumb.addEventListener("pointercancel", release);
-  bar.addEventListener("pointerdown", (e) => {
-    if (e.target !== bar) return;
-    const g = geometry();
-    const y = e.clientY - bar.getBoundingClientRect().top - g.size / 2;
-    scrollTo({ top: (y / g.room) * g.scrollable, behavior: calm ? "instant" : "smooth" });
-  });
-}
-
 /** Questions open and close with their height easing, instead of jumping. */
 function setupFaq() {
   if (calm) return;
@@ -211,68 +151,6 @@ function setupFaq() {
       if (!opening) run.onfinish = () => (item.open = false);
     });
   }
-}
-
-/** The mouse wheel glides the page, as in the app (lerp 0.13): the wheel moves a target and the
- *  page eases towards it every frame. Keys, links and touch scroll as the browser does. */
-function setupSmoothWheel() {
-  if (calm || !matchMedia("(pointer: fine)").matches) return;
-  let target = scrollY;
-  let moving = false;
-  const max = () => document.documentElement.scrollHeight - innerHeight;
-  const step = () => {
-    const now = scrollY + (target - scrollY) * 0.13;
-    const done = Math.abs(target - now) < 0.5;
-    scrollTo({ top: done ? target : now, behavior: "instant" });
-    moving = !done;
-    if (moving) requestAnimationFrame(step);
-  };
-  addEventListener(
-    "wheel",
-    (e) => {
-      // Zoom and sideways scrolling keep their own behaviour.
-      if (e.ctrlKey || Math.abs(e.deltaX) > Math.abs(e.deltaY)) return;
-      const lines = e.deltaMode === 1 ? 40 : e.deltaMode === 2 ? innerHeight : 1;
-      const delta = e.deltaY * lines;
-      e.preventDefault();
-      if (!moving) target = scrollY;
-      target = Math.max(0, Math.min(max(), target + delta));
-      if (!moving) {
-        moving = true;
-        requestAnimationFrame(step);
-      }
-    },
-    { passive: false },
-  );
-  // Keys, links and the scrollbar move the page directly: the next glide starts from there.
-  addEventListener("scroll", () => {
-    if (!moving) target = scrollY;
-  });
-}
-
-/** The story: the step in the middle of the screen picks the picture in the pinned window, its
- *  dot and the colour of the light behind it. */
-function setupStory() {
-  const story = document.querySelector(".story");
-  if (!story || calm || !("IntersectionObserver" in window)) return;
-  document.documentElement.classList.add("story-live");
-  const steps = [...story.querySelectorAll(".story-step")];
-  const frames = [...story.querySelectorAll(".story-frame > *")];
-  const dots = [...story.querySelectorAll(".story-dots i")];
-  const show = (i) => {
-    steps.forEach((s, k) => s.classList.toggle("on", k === i));
-    frames.forEach((f, k) => f.classList.toggle("on", k === i));
-    dots.forEach((d, k) => d.classList.toggle("on", k === i));
-    story.style.setProperty("--story-tint", steps[i].dataset.glow);
-  };
-  show(0);
-  const seen = new IntersectionObserver(
-    (entries) => {
-      for (const e of entries) if (e.isIntersecting) show(steps.indexOf(e.target));
-    },
-    { rootMargin: "-45% 0px -45% 0px" },
-  );
-  steps.forEach((s) => seen.observe(s));
 }
 
 /** The hero screenshot leans toward the pointer, with a soft light where it points. */
@@ -314,15 +192,6 @@ const ABOUT = {
   shikicinema: "Ссылки на серии, которые пользователи Shikimori собрали из VK, ok.ru, Дзена и других плееров.",
   yummy: "Каталог YummyAnime: Kodik до 720p и CVH до 4K.",
 };
-const ABOUT_EN = {
-  anilibria: "AniLibria's releases with their own dub, up to 1080p.",
-  animego: "AnimeGO's catalogue: Aniboom and CVH players up to 1080p, Kodik up to 720p.",
-  animelib: "AnimeLib's catalogue, episodes through the Kodik player.",
-  anixart: "The Anixart app's catalogue, split by dub team.",
-  rutube: "Dub teams' own uploads on Rutube, up to 1080p.",
-  shikicinema: "Episode links Shikimori users gathered from VK, ok.ru, Dzen and other players.",
-  yummy: "YummyAnime's catalogue: Kodik up to 720p and CVH up to 4K.",
-};
 
 const hostOf = (url) => String(url).replace(/^[a-z]+:\/\//i, "").split("/")[0];
 
@@ -339,7 +208,7 @@ function pluginCard(ext) {
   const head = element("div", "plugin-head");
   head.append(element("h3", "", String(ext.name ?? ext.id)), element("span", "ver", String(ext.version ?? "")));
   const sites = [...new Set((Array.isArray(ext.domains) ? ext.domains : []).map(hostOf))];
-  li.append(head, element("p", "", (EN ? ABOUT_EN : ABOUT)[ext.id] ?? TEXT.source), element("p", "sites", sites.join(", ")));
+  li.append(head, element("p", "", ABOUT[ext.id] ?? TEXT.source), element("p", "sites", sites.join(", ")));
   return li;
 }
 
@@ -427,23 +296,17 @@ async function loadRelease() {
     const onWindows = windows && /Windows/i.test(navigator.userAgent);
     for (const link of links) {
       link.href = onWindows ? windows.browser_download_url : linux.browser_download_url;
-      if (onWindows && !link.hasAttribute("data-keep-label")) link.textContent = EN ? "Download for Windows" : "Скачать для Windows";
+      if (onWindows && !link.hasAttribute("data-keep-label")) link.textContent = "Скачать для Windows";
     }
     const cmd = document.querySelector("[data-install-cmd]");
     if (cmd) cmd.textContent = `curl -L ${linux.browser_download_url} | tar xz && ./ninari-*/install.sh`;
     const meta = document.querySelector("[data-release-meta]");
-    if (meta)
-      meta.textContent = EN
-        ? `Version ${version} · Linux · ${mb} MB · free and open source`
-        : `Версия ${version} · Linux · ${mb} МБ · бесплатно, открытый код`;
+    if (meta) meta.textContent = `Версия ${version} · Linux и Windows · бесплатно, открытый код`;
     const date = rel.published_at
-      ? new Date(rel.published_at).toLocaleDateString(EN ? "en-GB" : "ru-RU", { day: "numeric", month: "long", year: "numeric" })
+      ? new Date(rel.published_at).toLocaleDateString("ru-RU", { day: "numeric", month: "long", year: "numeric" })
       : "";
     const line = document.querySelector("[data-release-line]");
-    if (line)
-      line.textContent = EN
-        ? `Version ${version}${date ? ` of ${date}` : ""}, ${mb} MB archive.`
-        : `Версия ${version}${date ? ` от ${date}` : ""}, архив ${mb} МБ.`;
+    if (line) line.textContent = `Версия ${version}${date ? ` от ${date}` : ""}, архив ${mb} МБ.`;
     const notes = document.querySelector("[data-release-notes]");
     if (notes && rel.body) {
       notes.querySelector("[data-release-version]").textContent = version;
@@ -457,11 +320,8 @@ async function loadRelease() {
 
 setupReveal();
 setupTilt();
-setupStory();
-setupSmoothWheel();
 setupFaq();
 setupNav();
-setupScrollbar();
 setupToc();
 setupCopy();
 setupInstallAll();
