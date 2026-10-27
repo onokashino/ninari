@@ -14,7 +14,10 @@ pub struct Review {
     pub date: String,
     pub votes_for: i64,
     pub votes_against: i64,
+    /// The start, for the card.
     pub text: String,
+    /// The whole review, paragraphs kept.
+    pub full: String,
     pub url: String,
 }
 
@@ -106,6 +109,7 @@ pub fn parse_reviews(html: &str) -> Vec<Review> {
                 votes_for: votes("votes-for"),
                 votes_against: votes("votes-against"),
                 text: excerpt(&plain(body).replace('\n', " "), 420),
+                full: plain(body),
                 url,
             })
         })

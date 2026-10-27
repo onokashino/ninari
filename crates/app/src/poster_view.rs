@@ -26,6 +26,9 @@ const PACE: f32 = 16.;
 pub struct PosterView {
     /// The picture: the card's own until the full one is in.
     pub path: PathBuf,
+    /// The picture shown before this one: kept on screen until this one is decoded, so a
+    /// switch never flashes the empty dark.
+    shown_before: Option<PathBuf>,
     /// Its size in pixels, to fit it to the window.
     pub size: (f32, f32),
     /// 1 fits the window.
@@ -66,12 +69,14 @@ impl PosterView {
             sharp: false,
             gallery: None,
             focus: None,
+            shown_before: None,
         }
     }
 
     /// The next of a set takes the place of this one without opening again.
     pub fn follow(&mut self, before: &PosterView) {
         self.opened = before.opened;
+        self.shown_before = Some(before.path.clone());
         self.focus = before.focus.clone();
     }
 
@@ -96,6 +101,7 @@ impl PosterView {
     /// The bigger picture arrived: shown in its place at the same zoom.
     pub fn sharpen(&mut self, path: PathBuf) {
         let size = self.size;
+        let before_path = self.path.clone();
         *self = Self {
             scale: self.scale,
             pan: self.pan,
@@ -106,6 +112,7 @@ impl PosterView {
             focus: self.focus.take(),
             ..Self::new(path)
         };
+        self.shown_before = Some(before_path);
         // Same shape: the zoom and the place stay right; another shape starts over.
         if ((self.size.0 / self.size.1) - (size.0 / size.1)).abs() > 0.02 {
             self.scale = 1.;
@@ -277,7 +284,16 @@ pub fn render<V: 'static>(
                     img(view.path.clone())
                         .size_full()
                         .rounded(theme::R_M)
-                        .object_fit(ObjectFit::Contain),
+                        .object_fit(ObjectFit::Contain)
+                        .when_some(view.shown_before.clone(), |i, before| {
+                            i.with_loading(move || {
+                                img(before.clone())
+                                    .size_full()
+                                    .rounded(theme::R_M)
+                                    .object_fit(ObjectFit::Contain)
+                                    .into_any_element()
+                            })
+                        }),
                 ),
         )
         .when(!view.sharp, |d| {
@@ -317,7 +333,7 @@ pub fn render<V: 'static>(
                     .child(icon(name, 24.).text_color(gpui::rgb(theme::TEXT)))
             };
             d.child(side("poster-prev", "back", -1).left(px(24.)))
-                .child(side("poster-next", "forward", 1).right(px(24.)))
+                .child(side("poster-next", "chevron", 1).right(px(24.)))
                 .child(
                     div()
                         .absolute()

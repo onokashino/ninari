@@ -364,7 +364,7 @@ pub fn shots(
                             .child("Кадры"),
                     )
                     .child(arrow("shots-back", "back", -1.))
-                    .child(arrow("shots-on", "forward", 1.)),
+                    .child(arrow("shots-on", "chevron", 1.)),
             )
             .child(row.render("shots", px(GAP), (4., 20., 10.), items, window, cx)),
     )
@@ -431,7 +431,13 @@ pub fn themes(list: &[Theme], accent: Hsla) -> Option<Div> {
 }
 
 /// The first reviews from Shikimori, a click opens one there.
-pub fn reviews(list: &[Review], all: String, accent: Hsla) -> Option<Div> {
+pub fn reviews(
+    list: &[Review],
+    all: String,
+    open: Option<usize>,
+    on_toggle: Rc<dyn Fn(usize, &mut Window, &mut App)>,
+    accent: Hsla,
+) -> Option<Div> {
     if list.is_empty() {
         return None;
     }
@@ -442,10 +448,17 @@ pub fn reviews(list: &[Review], all: String, accent: Hsla) -> Option<Div> {
             _ => ("Нейтральный", theme::TEXT_3),
         };
         let url = r.url.clone();
+        let opened = open == Some(i);
+        let toggle = on_toggle.clone();
         div()
             .id(("review", i))
-            .flex_1()
-            .min_w(px(320.))
+            .map(|d| {
+                if opened {
+                    d.w_full()
+                } else {
+                    d.flex_1().min_w(px(320.))
+                }
+            })
             .flex()
             .flex_col()
             .gap(px(10.))
@@ -457,7 +470,7 @@ pub fn reviews(list: &[Review], all: String, accent: Hsla) -> Option<Div> {
             .border_color(theme::line())
             .cursor_pointer()
             .hover(|s| s.border_color(rgb(theme::TEXT_3)))
-            .on_click(move |_, _, cx| cx.open_url(&url))
+            .on_click(move |_, window, cx| toggle(i, window, cx))
             .child(
                 div()
                     .flex()
@@ -475,15 +488,62 @@ pub fn reviews(list: &[Review], all: String, accent: Hsla) -> Option<Div> {
                     .child(muted(r.date.clone()))
                     .child(muted(format!("+{} / -{}", r.votes_for, r.votes_against))),
             )
-            .child(
-                div()
-                    .text_size(px(13.))
-                    .line_height(px(20.))
-                    .text_color(rgb(theme::TEXT_2))
-                    .line_clamp(6)
-                    .text_ellipsis()
-                    .child(r.text.clone()),
-            )
+            .map(|d| {
+                if opened {
+                    // The whole text only for the one open: paragraphs as the author wrote them.
+                    d.child(
+                        div()
+                            .flex()
+                            .flex_col()
+                            .gap(px(10.))
+                            .text_size(px(14.))
+                            .line_height(px(22.))
+                            .text_color(rgb(theme::TEXT))
+                            .children(
+                                r.full
+                                    .split('\n')
+                                    .filter(|p| !p.trim().is_empty())
+                                    .map(|p| div().child(p.to_string())),
+                            ),
+                    )
+                    .child(
+                        div()
+                            .flex()
+                            .gap(px(16.))
+                            .text_size(px(13.))
+                            .font_weight(FontWeight::BOLD)
+                            .child(div().text_color(accent).child("Свернуть"))
+                            .child(
+                                div()
+                                    .id(("review-site", i))
+                                    .text_color(rgb(theme::TEXT_3))
+                                    .hover(|s| s.text_color(rgb(theme::TEXT)))
+                                    .on_click(move |_, _, cx| {
+                                        cx.stop_propagation();
+                                        cx.open_url(&url);
+                                    })
+                                    .child("Обсуждение на Shikimori"),
+                            ),
+                    )
+                } else {
+                    d.child(
+                        div()
+                            .text_size(px(13.))
+                            .line_height(px(20.))
+                            .text_color(rgb(theme::TEXT_2))
+                            .line_clamp(6)
+                            .text_ellipsis()
+                            .child(r.text.clone()),
+                    )
+                    .child(
+                        div()
+                            .text_size(px(12.))
+                            .font_weight(FontWeight::BOLD)
+                            .text_color(accent)
+                            .child("Читать целиком"),
+                    )
+                }
+            })
     });
     Some(
         block("Отзывы")

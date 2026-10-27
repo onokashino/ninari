@@ -184,6 +184,8 @@ pub struct Title {
     video_rows: [Row; 2],
     /// "Ещё" under the facts is open, and the height of what it hides.
     about_open: bool,
+    /// The review read whole.
+    review_open: Option<usize>,
     /// The whole watch order is open, not only its first parts.
     order_open: bool,
     /// The poster open over the whole window.
@@ -250,6 +252,7 @@ impl Title {
             about_open: false,
             poster: None,
             order_open: false,
+            review_open: None,
             about_h: Rc::default(),
             hovered_score: None,
         };
@@ -1879,11 +1882,22 @@ impl Render for Title {
             .flatten();
         let reviews = near[5]
             .then(|| match &self.cur().reviews {
-                Some(Load::Ready(list)) => title_more::reviews(
-                    list,
-                    format!("https://shikimori.io/animes/{}/reviews", self.shown),
-                    accent,
-                ),
+                Some(Load::Ready(list)) => {
+                    let page = cx.entity().downgrade();
+                    title_more::reviews(
+                        list,
+                        format!("https://shikimori.io/animes/{}/reviews", self.shown),
+                        self.review_open,
+                        Rc::new(move |i, _, cx| {
+                            page.update(cx, |page, cx| {
+                                page.review_open = (page.review_open != Some(i)).then_some(i);
+                                cx.notify();
+                            })
+                            .ok();
+                        }),
+                        accent,
+                    )
+                }
                 _ => None,
             })
             .flatten();
