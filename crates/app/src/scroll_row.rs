@@ -60,6 +60,14 @@ impl Row {
         visible_items(left, screen, count, width + gap)
     }
 
+    /// Glides the row about `distance` px on (back when negative), as a flick would.
+    pub fn glide_by(&self, distance: f32, window: &mut Window) {
+        // A glide at v px/ms covers 16 v / (1 - FRICTION) before it stops.
+        let speed = distance * (1. - FRICTION) / 16.;
+        self.drag.borrow_mut().glide = Some((speed, Instant::now()));
+        window.refresh();
+    }
+
     /// Moves a glide on by the time since the last frame.
     fn step_glide(&self, window: &mut Window) {
         let mut drag = self.drag.borrow_mut();

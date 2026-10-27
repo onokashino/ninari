@@ -289,7 +289,7 @@ pub fn viewers(v: &Viewers, accent: Hsla) -> Option<Div> {
 pub fn shots(
     list: &[(PathBuf, String)],
     row: &Row,
-    on_open: Rc<dyn Fn(String, PathBuf, &mut Window, &mut App)>,
+    on_open: Rc<dyn Fn(usize, &mut Window, &mut App)>,
     window: &mut Window,
     cx: &mut App,
 ) -> Option<Div> {
@@ -302,9 +302,9 @@ pub fn shots(
     let items = list[shown.clone()]
         .iter()
         .enumerate()
-        .map(|(i, (thumb, full))| {
+        .map(|(i, (thumb, _))| {
             let open = on_open.clone();
-            let (full, thumb_path) = (full.clone(), thumb.clone());
+            let index = shown.start + i;
             div()
                 .id(("shot", shown.start + i))
                 .flex_none()
@@ -317,7 +317,7 @@ pub fn shots(
                 .border_1()
                 .border_color(theme::line())
                 .hover(|s| s.border_color(rgb(theme::TEXT_3)))
-                .on_click(move |_, window, cx| open(full.clone(), thumb_path.clone(), window, cx))
+                .on_click(move |_, window, cx| open(index, window, cx))
                 .child(
                     img(thumb.clone())
                         .size_full()
@@ -327,7 +327,47 @@ pub fn shots(
         })
         .collect();
     let items = spaced(shown, list.len(), W, GAP, items);
-    Some(block("Кадры").child(row.render("shots", px(GAP), (4., 20., 10.), items, window, cx)))
+    let arrow = |id: &'static str, name: &'static str, dir: f32| {
+        let row = row.clone();
+        div()
+            .id(id)
+            .size(px(34.))
+            .rounded_full()
+            .flex()
+            .items_center()
+            .justify_center()
+            .cursor_pointer()
+            .bg(theme::glass())
+            .hover(|s| s.bg(theme::glass_strong()))
+            .on_click(move |_, window, _| {
+                let page = f32::from(window.viewport_size().width) * 0.65;
+                row.glide_by(dir * page, window);
+            })
+            .child(crate::assets::icon(name, 18.).text_color(rgb(theme::TEXT)))
+    };
+    Some(
+        div()
+            .flex()
+            .flex_col()
+            .gap(px(16.))
+            .min_w(px(0.))
+            .child(
+                div()
+                    .flex()
+                    .items_center()
+                    .gap(px(8.))
+                    .child(
+                        div()
+                            .flex_1()
+                            .text_size(px(18.))
+                            .font_weight(FontWeight::EXTRA_BOLD)
+                            .child("Кадры"),
+                    )
+                    .child(arrow("shots-back", "back", -1.))
+                    .child(arrow("shots-on", "forward", 1.)),
+            )
+            .child(row.render("shots", px(GAP), (4., 20., 10.), items, window, cx)),
+    )
 }
 
 /// Openings and endings; a click looks the song up on YouTube.

@@ -575,16 +575,39 @@ impl Title {
         }
     }
 
-    /// A frame over the whole window: its small picture at once, the whole one when in.
-    fn open_frame(&mut self, full: String, small: PathBuf, cx: &mut Context<Self>) {
-        self.poster = Some(crate::poster_view::PosterView::new(small));
+    /// Frame `index` of the part on screen over the whole window: its small picture at once,
+    /// the whole one when in; the arrows go to the others.
+    fn open_frame(&mut self, index: usize, cx: &mut Context<Self>) {
+        let Some(Load::Ready(list)) = self.cur().shots.as_ref() else {
+            return;
+        };
+        let Some((small, full)) = list.get(index).cloned() else {
+            return;
+        };
+        let count = list.len();
+        let page = cx.entity().downgrade();
+        let mut view = crate::poster_view::PosterView::new(small);
+        if let Some(before) = &self.poster {
+            view.follow(before);
+        }
+        view.gallery = Some(crate::poster_view::Gallery {
+            index,
+            count,
+            step: Rc::new(move |i, _, cx| {
+                page.update(cx, |page, cx| page.open_frame(i, cx)).ok();
+            }),
+        });
+        self.poster = Some(view);
         let job = self
             .core
             .run(move |c| async move { Ok(c.posters.image(&full).await) });
         cx.spawn(async move |page, cx| {
             let got = job.await.ok().flatten();
             page.update(cx, |page, cx| {
-                if let Some(v) = &mut page.poster {
+                // Still the same frame: the user may have gone on meanwhile.
+                if let Some(v) = &mut page.poster
+                    && v.gallery.as_ref().is_some_and(|g| g.index == index)
+                {
                     match got {
                         Some(path) => v.sharpen(path),
                         None => v.sharp = true,
@@ -1789,10 +1812,9 @@ impl Render for Title {
         let videos = near[2]
             .then(|| {
                 let page = cx.entity().downgrade();
-                let on_frame: Rc<dyn Fn(String, PathBuf, &mut Window, &mut gpui::App)> =
-                    Rc::new(move |full, small, _, cx| {
-                        page.update(cx, |page, cx| page.open_frame(full, small, cx))
-                            .ok();
+                let on_frame: Rc<dyn Fn(usize, &mut Window, &mut gpui::App)> =
+                    Rc::new(move |index, _, cx| {
+                        page.update(cx, |page, cx| page.open_frame(index, cx)).ok();
                     });
                 let season = self.cur();
                 let parts = [

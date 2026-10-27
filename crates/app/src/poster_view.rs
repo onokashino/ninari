@@ -3,11 +3,12 @@
 //! dark around it or Esc closes it.
 
 use std::path::PathBuf;
+use std::rc::Rc;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use gpui::{
-    AnchoredPositionMode, AnyElement, ClickEvent, Context, MouseButton, MouseDownEvent,
+    AnchoredPositionMode, AnyElement, App, ClickEvent, Context, MouseButton, MouseDownEvent,
     MouseMoveEvent, MouseUpEvent, ObjectFit, Pixels, Point, ScrollEvent, Window, anchored,
     deferred, div, img, point, prelude::*, px, rgba,
 };
@@ -39,6 +40,15 @@ pub struct PosterView {
     opened: Instant,
     /// The biggest poster is in (or there is none to wait for).
     pub sharp: bool,
+    /// One of a set (the frames): which, of how many, and how to go to another.
+    pub gallery: Option<Gallery>,
+    focus: Option<gpui::FocusHandle>,
+}
+
+pub struct Gallery {
+    pub index: usize,
+    pub count: usize,
+    pub step: Rc<dyn Fn(usize, &mut Window, &mut App)>,
 }
 
 impl PosterView {
@@ -54,7 +64,15 @@ impl PosterView {
             last: Instant::now(),
             opened: Instant::now(),
             sharp: false,
+            gallery: None,
+            focus: None,
         }
+    }
+
+    /// The next of a set takes the place of this one without opening again.
+    pub fn follow(&mut self, before: &PosterView) {
+        self.opened = before.opened;
+        self.focus = before.focus.clone();
     }
 
     /// Eases what is drawn towards what is wanted; whether it is still moving.
@@ -84,6 +102,8 @@ impl PosterView {
             shown: self.shown,
             opened: self.opened,
             sharp: true,
+            gallery: self.gallery.take(),
+            focus: self.focus.take(),
             ..Self::new(path)
         };
         // Same shape: the zoom and the place stay right; another shape starts over.
@@ -149,8 +169,33 @@ pub fn render<V: 'static>(
         *slot(page) = None;
         cx.notify();
     });
+    // Arrow keys go through the set: the view takes the keyboard while open.
+    let focus = view.focus.get_or_insert_with(|| cx.focus_handle()).clone();
+    if !focus.is_focused(window) {
+        window.focus(&focus, cx);
+    }
+    let step = view
+        .gallery
+        .as_ref()
+        .map(|g| (g.index, g.count, g.step.clone()));
+    let go = move |delta: isize, window: &mut Window, cx: &mut App| {
+        if let Some((index, count, step)) = &step {
+            let next = (*index as isize + delta).rem_euclid(*count as isize) as usize;
+            step(next, window, cx);
+        }
+    };
+    let go = Rc::new(go);
     let layer = div()
         .id("poster-view")
+        .track_focus(&focus)
+        .on_key_down({
+            let go = go.clone();
+            move |e: &gpui::KeyDownEvent, window, cx| match e.keystroke.key.as_str() {
+                "left" => go(-1, window, cx),
+                "right" => go(1, window, cx),
+                _ => {}
+            }
+        })
         .occlude()
         .w(screen.width)
         .h(screen.height)
@@ -251,6 +296,40 @@ pub fn render<V: 'static>(
                     .justify_center()
                     .child("Загружаю в высоком качестве…"),
             )
+        })
+        .when_some(view.gallery.as_ref(), |d, g| {
+            let side = |id: &'static str, name: &'static str, delta: isize| {
+                let go = go.clone();
+                div()
+                    .id(id)
+                    .absolute()
+                    .top(screen.height / 2. - px(26.))
+                    .size(px(52.))
+                    .rounded_full()
+                    .flex()
+                    .items_center()
+                    .justify_center()
+                    .cursor_pointer()
+                    .bg(theme::glass_strong())
+                    .hover(|s| s.bg(rgba(0xffffff33)))
+                    .on_mouse_down(MouseButton::Left, |_, _, cx| cx.stop_propagation())
+                    .on_click(move |_, window, cx| go(delta, window, cx))
+                    .child(icon(name, 24.).text_color(gpui::rgb(theme::TEXT)))
+            };
+            d.child(side("poster-prev", "back", -1).left(px(24.)))
+                .child(side("poster-next", "forward", 1).right(px(24.)))
+                .child(
+                    div()
+                        .absolute()
+                        .top(px(28.))
+                        .left_0()
+                        .right_0()
+                        .flex()
+                        .justify_center()
+                        .text_size(px(13.))
+                        .text_color(gpui::rgb(theme::TEXT_2))
+                        .child(format!("{} / {}", g.index + 1, g.count)),
+                )
         })
         .child(
             div()
