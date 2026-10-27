@@ -144,7 +144,75 @@ pub fn presets(season: &str) -> Vec<Preset> {
             label: "Анонсы".into(),
             filter: with(&|f| f.statuses = vec!["anons".into()]),
         },
+        Preset {
+            key: "last-season",
+            label: format!(
+                "Лучшее: {}",
+                season_title(&shift_season(season, -1)).to_lowercase()
+            ),
+            filter: with(&|f| {
+                f.season = Some(shift_season(season, -1));
+                f.order = Some("ranked".into());
+            }),
+        },
+        Preset {
+            key: "best-2020s",
+            label: "Лучшее 2020-х".into(),
+            filter: ranked(Some("2020_2029"), &[], &[]),
+        },
+        Preset {
+            key: "best-2010s",
+            label: "Лучшее 2010-х".into(),
+            filter: ranked(Some("2010_2019"), &[], &[]),
+        },
+        Preset {
+            key: "classic",
+            label: "Классика".into(),
+            filter: ranked(Some("1970_2009"), &[], &[]),
+        },
+        Preset {
+            key: "films",
+            label: "Лучшие фильмы".into(),
+            filter: ranked(None, &["movie"], &[]),
+        },
+        // Shikimori's genre ids, the same as MyAnimeList's.
+        Preset {
+            key: "romance",
+            label: "Романтика".into(),
+            filter: ranked(None, &[], &[22]),
+        },
+        Preset {
+            key: "comedy",
+            label: "Комедии".into(),
+            filter: ranked(None, &[], &[4]),
+        },
+        Preset {
+            key: "sports",
+            label: "Спорт".into(),
+            filter: ranked(None, &[], &[30]),
+        },
+        Preset {
+            key: "slice",
+            label: "Повседневность".into(),
+            filter: ranked(None, &[], &[36]),
+        },
+        Preset {
+            key: "psychological",
+            label: "Психологическое".into(),
+            filter: ranked(None, &[], &[40]),
+        },
     ]
+}
+
+/// The best rated, within years, kinds and genres.
+fn ranked(years: Option<&str>, kinds: &[&str], genres: &[i64]) -> BrowseFilter {
+    BrowseFilter {
+        order: Some("ranked".into()),
+        season: years.map(String::from),
+        kinds: kinds.iter().map(|k| k.to_string()).collect(),
+        genres: genres.to_vec(),
+        ..Default::default()
+    }
 }
 
 /// Popularity is the default order, so it is left out when comparing.
@@ -237,7 +305,17 @@ mod tests {
                 "Топ за всё время",
                 "Осень 2026",
                 "Онгоинги",
-                "Анонсы"
+                "Анонсы",
+                "Лучшее: лето 2026",
+                "Лучшее 2020-х",
+                "Лучшее 2010-х",
+                "Классика",
+                "Лучшие фильмы",
+                "Романтика",
+                "Комедии",
+                "Спорт",
+                "Повседневность",
+                "Психологическое"
             ]
         );
         let mut f = BrowseFilter::default();
