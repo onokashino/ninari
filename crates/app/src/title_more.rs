@@ -4,7 +4,7 @@
 use std::path::PathBuf;
 use std::rc::Rc;
 
-use gpui::{App, Div, FontWeight, Hsla, Window, div, img, prelude::*, px, rgb};
+use gpui::{AnimationExt, App, Div, FontWeight, Hsla, Window, div, img, prelude::*, px, rgb};
 use ninari_core::catalog::details::{Part, Viewers};
 use ninari_core::catalog::extras::{Review, Theme};
 
@@ -490,39 +490,52 @@ pub fn reviews(
             )
             .map(|d| {
                 if opened {
-                    // The whole text only for the one open: paragraphs as the author wrote them.
+                    // The whole text only for the one open: paragraphs as the author wrote them,
+                    // easing in rather than appearing at once.
                     d.child(
                         div()
                             .flex()
                             .flex_col()
                             .gap(px(10.))
-                            .text_size(px(14.))
-                            .line_height(px(22.))
-                            .text_color(rgb(theme::TEXT))
-                            .children(
-                                r.full
-                                    .split('\n')
-                                    .filter(|p| !p.trim().is_empty())
-                                    .map(|p| div().child(p.to_string())),
-                            ),
-                    )
-                    .child(
-                        div()
-                            .flex()
-                            .gap(px(16.))
-                            .text_size(px(13.))
-                            .font_weight(FontWeight::BOLD)
-                            .child(div().text_color(accent).child("Свернуть"))
                             .child(
                                 div()
-                                    .id(("review-site", i))
-                                    .text_color(rgb(theme::TEXT_3))
-                                    .hover(|s| s.text_color(rgb(theme::TEXT)))
-                                    .on_click(move |_, _, cx| {
-                                        cx.stop_propagation();
-                                        cx.open_url(&url);
-                                    })
-                                    .child("Обсуждение на Shikimori"),
+                                    .flex()
+                                    .flex_col()
+                                    .gap(px(10.))
+                                    .text_size(px(14.))
+                                    .line_height(px(22.))
+                                    .text_color(rgb(theme::TEXT))
+                                    .children(
+                                        r.full
+                                            .split('\n')
+                                            .filter(|p| !p.trim().is_empty())
+                                            .map(|p| div().child(p.to_string())),
+                                    ),
+                            )
+                            .child(
+                                div()
+                                    .flex()
+                                    .gap(px(16.))
+                                    .text_size(px(13.))
+                                    .font_weight(FontWeight::BOLD)
+                                    .child(div().text_color(accent).child("Свернуть"))
+                                    .child(
+                                        div()
+                                            .id(("review-site", i))
+                                            .text_color(rgb(theme::TEXT_3))
+                                            .hover(|s| s.text_color(rgb(theme::TEXT)))
+                                            .on_click(move |_, _, cx| {
+                                                cx.stop_propagation();
+                                                cx.open_url(&url);
+                                            })
+                                            .child("Обсуждение на Shikimori"),
+                                    ),
+                            )
+                            .with_animation(
+                                ("review-open", i),
+                                gpui::Animation::new(std::time::Duration::from_millis(260))
+                                    .with_easing(theme::ease),
+                                |el, t| el.opacity(t).relative().top(px(8. * (1. - t))),
                             ),
                     )
                 } else {

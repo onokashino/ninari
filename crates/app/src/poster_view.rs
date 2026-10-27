@@ -364,6 +364,15 @@ pub fn render<V: 'static>(
                 .on_click(close)
                 .child(icon("close", 20.).text_color(gpui::rgb(theme::TEXT))),
         );
+    // A deferred element loses the window's picture cache: without it each picture here was
+    // decoded again on its own, the screen dark meanwhile.
+    let layer = match cx.try_global::<crate::images::Current>() {
+        Some(images) => gpui::image_cache(images.0.clone())
+            .size_full()
+            .child(layer)
+            .into_any_element(),
+        None => layer.into_any_element(),
+    };
     deferred(
         anchored()
             .position_mode(AnchoredPositionMode::Window)
