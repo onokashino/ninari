@@ -37,6 +37,8 @@ struct HoverCard {
     /// drawn any more (a season switched, a list rebuilt) takes its details with it.
     frame: u64,
     placed: u64,
+    /// The pointer is on the score: what it is shows above it.
+    on_score: bool,
 }
 
 struct Shown {
@@ -507,13 +509,35 @@ fn details(
                 .children(statuses),
         )
         .children(a.score.map(|score| {
+            let explain = cx.try_global::<HoverCard>().is_some_and(|s| s.on_score);
             div()
+                .id("hover-score")
                 .flex()
                 .items_baseline()
                 .justify_end()
                 .gap(px(6.))
+                .on_hover(|on, window, cx| {
+                    cx.default_global::<HoverCard>().on_score = *on;
+                    window.refresh();
+                })
+                .when(explain, |d| {
+                    d.child(
+                        div()
+                            .flex_1()
+                            .min_w(px(0.))
+                            .text_size(px(11.))
+                            .line_height(px(14.))
+                            .text_color(rgb(theme::TEXT_3))
+                            .child("Средняя оценка зрителей Shikimori, из 10"),
+                    )
+                })
                 // The star of the cards' score chips.
-                .child(div().text_size(px(18.)).text_color(rgb(0xf5c451)).child("★"))
+                .child(
+                    div()
+                        .text_size(px(18.))
+                        .text_color(rgb(0xf5c451))
+                        .child("★"),
+                )
                 .child(
                     div()
                         .text_size(px(20.))
