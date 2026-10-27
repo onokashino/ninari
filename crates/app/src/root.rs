@@ -930,6 +930,7 @@ impl Render for Root {
             .text_color(Accent::colors(cx).1.opacity(0.85));
 
         let scroll = self.history.current().scroll.clone();
+        self.glide.self_test(&scroll, window);
         self.glide.step(&scroll, window);
         // A scroll moves the cards from under a still pointer: their details go.
         let offset = scroll.offset().y;

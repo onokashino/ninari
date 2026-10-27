@@ -54,6 +54,15 @@ impl Frames {
             if gap < 100. {
                 s.gaps.push(gap);
             }
+            // A late frame, with when it was, to match against samples of the main thread.
+            if (25. ..100.).contains(&gap)
+                && let Some(started) = STARTED.get()
+            {
+                tracing::info!(
+                    "frames: late {gap:.0} ms, ended at {} ms",
+                    (now - *started).as_millis()
+                );
+            }
         }
         s.start = Some(now);
         s.since.get_or_insert(now);

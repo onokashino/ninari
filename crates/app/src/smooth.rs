@@ -37,6 +37,25 @@ impl Glide {
         self.target.set(None);
     }
 
+    /// NINARI_SCROLLTEST=1: the page glides down and up by itself, as a wheel would move it, to
+    /// measure scrolling on a real screen with NINARI_FRAMES. Nothing else touches the input.
+    pub fn self_test(&self, scroll: &ScrollHandle, window: &mut Window) {
+        thread_local! {
+            static ON: Option<Instant> = std::env::var("NINARI_SCROLLTEST")
+                .is_ok_and(|v| !v.is_empty() && v != "0")
+                .then(Instant::now);
+        }
+        let Some(start) = ON.with(|s| *s) else { return };
+        let max = scroll.max_offset().y;
+        // Down in 4 s, up in 4 s, in notches of a fifth of a second like a wheel turned steadily.
+        let t = (start.elapsed().as_secs_f32() / 4.).floor() as u32;
+        let notch = (start.elapsed().as_secs_f32() * 5.).floor();
+        let k = (notch % 20.) / 20.;
+        let along = if t % 2 == 0 { k } else { 1. - k };
+        self.target.set(Some(-max * along));
+        window.request_animation_frame();
+    }
+
     /// Moves `scroll` on by the time since the last frame; called while drawing.
     pub fn step(&self, scroll: &ScrollHandle, window: &mut Window) {
         let Some(target) = self.target.get() else {
