@@ -28,6 +28,8 @@ struct HoverCard {
     /// The card under the pointer, if any.
     over_card: Option<ElementId>,
     over_details: bool,
+    /// Since when the pointer is over neither the card nor the details.
+    away: Option<Instant>,
 }
 
 struct Shown {
@@ -155,14 +157,51 @@ pub struct Actions {
 
 /// The details of the card the pointer rests on, beside it; Root draws them over everything.
 pub fn overlay(actions: Actions, window: &mut Window, cx: &mut App) -> Option<AnyElement> {
-    let state = cx.try_global::<HoverCard>()?;
-    let shown = state.shown.as_ref()?;
-    let bounds = shown.bounds?;
-    if shown.since.elapsed() < SHOW_AFTER {
+    let (bounds, since, over_details) = {
+        let state = cx.try_global::<HoverCard>()?;
+        let shown = state.shown.as_ref()?;
+        (shown.bounds?, shown.since, state.over_details)
+    };
+    if since.elapsed() < SHOW_AFTER {
         return None;
     }
-    let id = shown.card.as_ref()?.anime.id;
-    if shown.status.is_none() {
+    // The card can move or go from under a still pointer (a season switch, a list rebuilt), and
+    // then no "left" comes: what decides is where the pointer is now.
+    let on_card = bounds.contains(&window.mouse_position());
+    let state = cx.default_global::<HoverCard>();
+    if on_card || over_details {
+        state.away = None;
+    } else {
+        match state.away {
+            Some(t) if t.elapsed() >= HIDE_AFTER => {
+                state.shown = None;
+                state.over_card = None;
+                state.away = None;
+                return None;
+            }
+            Some(_) => {}
+            None => {
+                state.away = Some(Instant::now());
+                // A frame after the grace, to check again even if nothing else moves.
+                later(HIDE_AFTER, cx, |_| {});
+            }
+        }
+    }
+    let id = cx
+        .try_global::<HoverCard>()?
+        .shown
+        .as_ref()?
+        .card
+        .as_ref()?
+        .anime
+        .id;
+    let unread = cx
+        .try_global::<HoverCard>()?
+        .shown
+        .as_ref()?
+        .status
+        .is_none();
+    if unread {
         let status = Core::get(cx)
             .library
             .get_entry(id)
