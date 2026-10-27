@@ -39,26 +39,6 @@ pub fn shrink(bytes: &[u8], max: u32) -> Option<Vec<u8>> {
     Some(out.into_inner())
 }
 
-/// A picture brought down to 8x12 grey pixels: enough to tell one poster from another, not
-/// the same art in another size or compression.
-fn print(bytes: &[u8]) -> Option<Vec<u8>> {
-    let img = image::load_from_memory(bytes).ok()?;
-    Some(
-        img.resize_exact(8, 12, image::imageops::FilterType::Triangle)
-            .to_luma8()
-            .into_raw(),
-    )
-}
-
-fn same_picture(a: &[u8], b: &[u8]) -> bool {
-    let diff: u32 = a
-        .iter()
-        .zip(b)
-        .map(|(x, y)| u32::from(x.abs_diff(*y)))
-        .sum();
-    diff / a.len().max(1) as u32 <= 24
-}
-
 pub const DEFAULT_ACCENT: &str = "#b9a3ff";
 pub const DEFAULT_GLOW: &str = "#3a2f6b";
 
@@ -239,23 +219,10 @@ impl Posters {
                 .and_then(|r| r.into_dimensions().ok())
                 .map_or(0, |(w, h)| u64::from(w) * u64::from(h))
         };
-        // The same picture the card shows, only bigger: another source's poster may be other
-        // art altogether. Without the card's picture to compare with, any will do.
-        let card = self
-            .cached(id)
-            .ok()
-            .flatten()
-            .and_then(|(path, _)| std::fs::read(path).ok())
-            .and_then(|b| print(&b));
         let (url, bytes) = urls
             .iter()
             .zip(got)
             .filter_map(|(u, b)| Some((u, b.ok()?)))
-            .filter(|(_, b)| match (&card, print(b)) {
-                (Some(c), Some(p)) => same_picture(c, &p),
-                (Some(_), None) => false,
-                (None, _) => true,
-            })
             .max_by_key(|(_, b)| pixels(b))?;
         let ext = url
             .rsplit('.')
@@ -264,8 +231,31 @@ impl Posters {
             .unwrap_or("jpg");
         std::fs::create_dir_all(&dir).ok()?;
         let path = dir.join(format!("{id}.{ext}"));
-        std::fs::write(&path, bytes).ok()?;
+        std::fs::write(&path, &bytes).ok()?;
+        // The card shows the same picture from now on, only smaller: the card and its full view
+        // agree, and the card is as sharp as the best source allows.
+        self.adopt(id, &bytes, ext);
         Some(path)
+    }
+
+    /// Makes `bytes` the title's card poster, shrunk, under a name of its own (a picture cache
+    /// keyed by the old file would keep showing that).
+    fn adopt(&self, id: i64, bytes: &[u8], ext: &str) {
+        let small = shrink(bytes, POSTER_MAX_W).unwrap_or_else(|| bytes.to_vec());
+        let path = self.dir.join(format!("{id}-hq.{ext}"));
+        if std::fs::write(&path, &small).is_err() {
+            return;
+        }
+        let palette = image::load_from_memory(&small)
+            .map(|img| pick_palette(&img))
+            .unwrap_or_default();
+        let Ok(palette) = serde_json::to_string(&palette) else {
+            return;
+        };
+        let _ = self.db.lock().unwrap().execute(
+            "UPDATE titles SET poster_path = ?1, palette_json = ?2 WHERE shikimori_id = ?3",
+            params![path.to_string_lossy(), palette, id],
+        );
     }
 
     /// Kitsu's poster of a MyAnimeList (= Shikimori) id, in its original size.
@@ -542,32 +532,6 @@ mod tests {
         assert!(first.starts_with(dir.path()));
         assert_eq!(std::fs::read(&first).unwrap(), png([10, 20, 30]));
         assert_eq!(hits.load(Ordering::SeqCst), 1);
-    }
-
-    #[test]
-    fn the_same_picture_is_told_from_another() {
-        let encode = |img: DynamicImage, w: u32, h: u32| {
-            let mut out = std::io::Cursor::new(Vec::new());
-            img.resize_exact(w, h, image::imageops::FilterType::Triangle)
-                .write_to(&mut out, image::ImageFormat::Png)
-                .unwrap();
-            out.into_inner()
-        };
-        let art = DynamicImage::ImageRgb8(RgbImage::from_fn(80, 120, |x, y| {
-            Rgb([(x * 3) as u8, (y * 2) as u8, 90])
-        }));
-        let other = DynamicImage::ImageRgb8(RgbImage::from_fn(80, 120, |x, y| {
-            Rgb([(255 - y * 2) as u8, (x * 3) as u8, 20])
-        }));
-        let small = print(&encode(art.clone(), 40, 60)).unwrap();
-        assert!(same_picture(
-            &small,
-            &print(&encode(art, 400, 600)).unwrap()
-        ));
-        assert!(!same_picture(
-            &small,
-            &print(&encode(other, 400, 600)).unwrap()
-        ));
     }
 
     #[test]

@@ -130,6 +130,8 @@ struct Season {
     shots: Option<Load<Vec<(PathBuf, String)>>>,
     /// The synopsis of the episode the "Дальше" card offers.
     synopsis: Option<(i64, Load<Option<String>>)>,
+    /// The best poster of all sources has been asked for: it becomes the card's.
+    best_poster: bool,
 }
 
 impl Season {
@@ -150,6 +152,7 @@ impl Season {
             reviews: None,
             shots: None,
             synopsis: None,
+            best_poster: false,
         }
     }
 }
@@ -505,6 +508,32 @@ impl Title {
             palette: poster(card, cx).map(|(_, p)| p).unwrap_or_default(),
         };
         cx.emit(TitleEvent::Play(request));
+    }
+
+    /// The sharpest poster any source has, downloaded in the background: the card takes it, and
+    /// the full view finds it ready.
+    fn fetch_best_poster(&mut self, cx: &mut Context<Self>) {
+        let id = self.shown;
+        self.season_mut(id).best_poster = true;
+        let full = crate::poster_view::load_full(&self.core, id);
+        let core = self.core.clone();
+        cx.spawn(async move |page, cx| {
+            if !matches!(full.await, Ok(Some(_))) {
+                return;
+            }
+            let Ok(Some((path, palette))) = core.posters.cached(id) else {
+                return;
+            };
+            page.update(cx, |page, cx| {
+                if let Load::Ready(card) = &mut page.season_mut(id).card {
+                    card.poster_path = Some(path.to_string_lossy().into_owned());
+                    card.palette = Some(palette);
+                    cx.notify();
+                }
+            })
+            .ok();
+        })
+        .detach();
     }
 
     /// The synopsis of `episode` of the part on screen, fetched once from MyAnimeList.
@@ -1431,6 +1460,9 @@ impl Render for Title {
             self.switch = None;
         } else {
             window.request_animation_frame();
+        }
+        if card_in && !self.cur().best_poster {
+            self.fetch_best_poster(cx);
         }
         let dir = self.switch.as_ref().map_or(1., |s| s.dir);
         self.drawn = match (&self.switch, phase) {
