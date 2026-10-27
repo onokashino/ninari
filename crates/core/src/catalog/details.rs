@@ -22,6 +22,9 @@ pub const DETAILS_QUERY: &str = r#"query($ids: String) {
     characterRoles { rolesEn character { id name russian japanese poster { mainUrl } } }
     chronology { id russian name kind status episodes airedOn { date } }
     videos { name kind url playerUrl }
+    scoresStats { score count }
+    statusesStats { status count }
+    screenshots { originalUrl x332Url }
   }
 }"#;
 
@@ -76,6 +79,8 @@ pub struct RawDetails {
     /// The franchise in airing order, the title itself included.
     pub parts: Vec<Part>,
     pub videos: Vec<Video>,
+    pub viewers: Viewers,
+    pub shots: Vec<Shot>,
 }
 
 /// A trailer or a song of the title on YouTube.
@@ -135,6 +140,60 @@ pub fn parse_videos(list: &serde_json::Value) -> Vec<Video> {
     }
     trailers.extend(music);
     trailers
+}
+
+/// How Shikimori's users rated the title and where it is in their lists.
+#[derive(Debug, Clone, Default, PartialEq, Serialize)]
+pub struct Viewers {
+    /// Votes per score, 10 down to 1.
+    pub scores: Vec<(i64, i64)>,
+    /// People per list status: planned, watching, completed, on_hold, dropped.
+    pub statuses: Vec<(String, i64)>,
+}
+
+impl Viewers {
+    pub fn votes(&self) -> i64 {
+        self.scores.iter().map(|(_, n)| n).sum()
+    }
+}
+
+/// A frame of an episode: a small picture for the row, the whole one to open.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct Shot {
+    pub thumb: String,
+    pub full: String,
+}
+
+fn parse_viewers(a: &serde_json::Value) -> Viewers {
+    let mut scores: Vec<(i64, i64)> = a["scoresStats"]
+        .as_array()
+        .into_iter()
+        .flatten()
+        .filter_map(|s| Some((s["score"].as_i64()?, s["count"].as_i64()?)))
+        .collect();
+    scores.sort_by(|a, b| b.0.cmp(&a.0));
+    let order = ["watching", "completed", "planned", "on_hold", "dropped"];
+    let mut statuses: Vec<(String, i64)> = a["statusesStats"]
+        .as_array()
+        .into_iter()
+        .flatten()
+        .filter_map(|s| Some((s["status"].as_str()?.to_string(), s["count"].as_i64()?)))
+        .collect();
+    statuses.sort_by_key(|(s, _)| order.iter().position(|o| o == s).unwrap_or(9));
+    Viewers { scores, statuses }
+}
+
+fn parse_shots(list: &serde_json::Value) -> Vec<Shot> {
+    list.as_array()
+        .into_iter()
+        .flatten()
+        .filter_map(|s| {
+            Some(Shot {
+                thumb: text(&s["x332Url"])?,
+                full: text(&s["originalUrl"])?,
+            })
+        })
+        .collect()
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
@@ -253,6 +312,8 @@ pub fn parse_details(json: &str) -> Result<RawDetails, AppError> {
         persons,
         characters,
         videos: parse_videos(&a["videos"]),
+        viewers: parse_viewers(a),
+        shots: parse_shots(&a["screenshots"]),
     })
 }
 
@@ -457,6 +518,8 @@ pub struct TitleDetails {
     pub heroes: Vec<HeroView>,
     pub parts: Vec<Part>,
     pub videos: Vec<Video>,
+    pub viewers: Viewers,
+    pub shots: Vec<Shot>,
 }
 
 const DETAILS_TTL: Duration = Duration::from_secs(6 * 3600);
@@ -530,6 +593,8 @@ impl Details {
             heroes,
             parts,
             videos: raw.videos,
+            viewers: raw.viewers,
+            shots: raw.shots,
             japanese: raw.japanese,
             origin: raw.origin,
             season: raw.season,

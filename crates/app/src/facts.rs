@@ -238,6 +238,8 @@ mod tests {
             heroes: vec![],
             parts: vec![],
             videos: vec![],
+            viewers: Default::default(),
+            shots: vec![],
         }
     }
 

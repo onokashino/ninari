@@ -317,6 +317,20 @@ impl Jikan {
         Ok((all, true))
     }
 
+    /// Opening and ending songs from the title's MyAnimeList page.
+    pub async fn themes(&self, id: i64) -> Result<Vec<super::extras::Theme>, AppError> {
+        let html = self.get_mal(&format!("{}/anime/{id}", self.mal)).await?;
+        Ok(super::extras::parse_themes(&html))
+    }
+
+    /// An episode's synopsis from MyAnimeList, in English; `None` when it has none.
+    pub async fn synopsis(&self, id: i64, episode: i64) -> Result<Option<String>, AppError> {
+        let html = self
+            .get_mal(&format!("{}/anime/{id}/x/episode/{episode}", self.mal))
+            .await?;
+        Ok(super::extras::parse_synopsis(&html))
+    }
+
     async fn get_mal(&self, url: &str) -> Result<String, AppError> {
         let mut last = self.last_request.lock().await;
         if let Some(at) = *last {

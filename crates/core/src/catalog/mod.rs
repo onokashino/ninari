@@ -3,6 +3,7 @@ pub mod aniskip;
 pub mod browse;
 pub mod calendar;
 pub mod details;
+pub mod extras;
 pub mod jikan;
 pub mod people;
 pub mod posters;
@@ -556,6 +557,12 @@ impl Catalog {
         let list = calendar::parse_calendar(&resp.body)?;
         *self.calendar.lock().await = Some((Instant::now(), list.clone()));
         Ok(list)
+    }
+
+    /// The title's reviews on Shikimori, as its reviews page lists them.
+    pub async fn reviews(&self, id: i64) -> Result<Vec<extras::Review>, AppError> {
+        let (html, _) = self.rest(&format!("/animes/{id}/reviews")).await?;
+        Ok(extras::parse_reviews(&html))
     }
 
     /// A REST answer of Shikimori and the mirror that gave it, for building image addresses.
