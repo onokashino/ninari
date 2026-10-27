@@ -19,6 +19,8 @@ pub enum Route {
     Title(i64),
     Character(i64),
     Person(i64),
+    /// Everything a studio made, by its Shikimori id.
+    Studio(i64),
 }
 
 impl Route {
@@ -32,6 +34,9 @@ impl Route {
         }
         if let Some(id) = name.strip_prefix("person:") {
             return id.parse().ok().map(Route::Person);
+        }
+        if let Some(id) = name.strip_prefix("studio:") {
+            return id.parse().ok().map(Route::Studio);
         }
         Some(match name {
             "home" => Route::Home,

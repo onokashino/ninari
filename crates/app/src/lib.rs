@@ -64,6 +64,7 @@ pub mod shell;
 pub mod smooth;
 pub mod source_fix;
 pub mod stats_page;
+pub mod studio_page;
 pub mod text_input;
 pub mod theme;
 pub mod thumbs;

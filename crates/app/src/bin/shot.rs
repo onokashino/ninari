@@ -303,6 +303,7 @@ fn main() -> anyhow::Result<()> {
             || a.starts_with("title:")
             || a.starts_with("character:")
             || a.starts_with("person:")
+            || a.starts_with("studio:")
             || a.starts_with("player")
             || a.starts_with("search:")
     });

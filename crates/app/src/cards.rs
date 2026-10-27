@@ -72,6 +72,7 @@ pub fn poster_frame(c: &AnimeCard, w: Pixels, radius: Pixels, cx: &mut App) -> D
     )
 }
 
+#[derive(Default)]
 pub struct CardText {
     /// Replaces the kind and year under the title.
     pub note: Option<String>,

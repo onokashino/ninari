@@ -586,6 +586,11 @@ impl Root {
 
     /// The catalog of a genre or a studio, from a title's link.
     fn browse(&mut self, seed: Seed, window: &mut Window, cx: &mut Context<Self>) {
+        // A studio has a page of its own.
+        if let Seed::Studio(id, _) = seed {
+            self.open(Route::Studio(id), cx);
+            return;
+        }
         let page = self.catalog_page(window, cx);
         page.update(cx, |page, cx| page.show(seed, cx));
         self.open(Route::Catalog, cx);
@@ -761,6 +766,15 @@ impl Root {
                 if !self.people.contains_key(&route) {
                     let core = self.core.clone();
                     let page = cx.new(|cx| CharacterPage::new(core, id, cx));
+                    self.on_page_events(&page, window, cx);
+                    self.people.insert(route, page.into());
+                }
+                self.people[&route].clone().into_any_element()
+            }
+            Route::Studio(id) => {
+                if !self.people.contains_key(&route) {
+                    let core = self.core.clone();
+                    let page = cx.new(|cx| crate::studio_page::StudioPage::new(core, id, cx));
                     self.on_page_events(&page, window, cx);
                     self.people.insert(route, page.into());
                 }
