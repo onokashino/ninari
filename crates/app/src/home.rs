@@ -139,7 +139,7 @@ impl Home {
         fetch(
             cx,
             core.run(|c| async move {
-                feeds::recommendations(&c.library, &c.catalog, &c.posters).await
+                feeds::recommendations(&c.library, &c.catalog, &c.anilist, &c.posters).await
             }),
             |home, v| home.for_you = v,
         );

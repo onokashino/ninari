@@ -41,6 +41,7 @@ pub struct Core {
     pub resolver: Arc<Resolver>,
     pub schedule: Arc<Schedule>,
     pub details: Arc<Details>,
+    pub anilist: Arc<AniList>,
     pub jikan: Arc<Jikan>,
     /// For pictures the core does not keep itself, such as video thumbnails.
     pub http: HttpClient,
@@ -140,7 +141,11 @@ impl Core {
             anilist.clone(),
         ));
         let schedule = Arc::new(Schedule::new(catalog.clone(), anilist.clone()));
-        let details = Arc::new(Details::new(catalog.clone(), anilist, posters.clone()));
+        let details = Arc::new(Details::new(
+            catalog.clone(),
+            anilist.clone(),
+            posters.clone(),
+        ));
         let jikan = Jikan::new(http.clone(), db.clone());
         let host = Arc::new(ExtensionHost::new(
             http.clone(),
@@ -241,6 +246,7 @@ impl Core {
             resolver,
             schedule,
             details,
+            anilist,
             jikan,
             http: http.clone(),
             proxy,

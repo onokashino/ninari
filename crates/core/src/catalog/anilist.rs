@@ -260,6 +260,24 @@ impl AniList {
         super::details::parse_cast(&body).ok()
     }
 
+    /// What AniList's users recommend to those who liked a title, best rated first, as MAL ids.
+    pub async fn recommended(&self, mal_id: i64) -> Option<Vec<i64>> {
+        let body = self
+            .post(
+                "query ($mal: Int) { Media(idMal: $mal, type: ANIME) { recommendations(sort: RATING_DESC, perPage: 12) { nodes { mediaRecommendation { idMal } } } } }",
+                json!({ "mal": mal_id }),
+            )
+            .await?;
+        let v: serde_json::Value = serde_json::from_str(&body).ok()?;
+        Some(
+            v["data"]["Media"]["recommendations"]["nodes"]
+                .as_array()?
+                .iter()
+                .filter_map(|n| n["mediaRecommendation"]["idMal"].as_i64())
+                .collect(),
+        )
+    }
+
     /// Episodes airing between two Unix times, aired ones included; None when AniList cannot
     /// be asked right now.
     pub async fn airing(&self, from: i64, to: i64) -> Option<Vec<Airing>> {

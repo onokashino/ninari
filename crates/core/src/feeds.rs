@@ -132,35 +132,63 @@ pub async fn new_seasons(
         .collect())
 }
 
-/// How many recently watched titles the recommendations are drawn from.
-const RECOMMEND_SEEDS: usize = 5;
+/// How many recently watched titles, and how many of the best rated, recommendations come from.
+const RECENT_SEEDS: usize = 3;
+const LOVED_SEEDS: usize = 3;
 
-/// "You may like": titles similar to what the user watched lately, minus the library.
+/// "You may like": titles similar to what the user watched lately and to what they rated
+/// highest, from Shikimori's similar titles and AniList users' recommendations, minus the
+/// library. The best rated count twice.
 pub async fn recommendations(
     library: &Library,
     catalog: &Catalog,
+    anilist: &crate::catalog::anilist::AniList,
     posters: &Posters,
 ) -> R<Vec<AnimeCard>> {
     let entries = library.list(None)?;
     let owned: HashSet<i64> = entries.iter().map(|e| e.shikimori_id).collect();
-    let mut seeds = Vec::new();
+    let mut recent = Vec::new();
     for e in entries
         .iter()
         .filter(|e| e.status == "watching" || e.status == "completed")
     {
         let progress = library.progress(e.shikimori_id)?;
-        seeds.push((
+        recent.push((
             last_watched(&progress).unwrap_or(e.updated_at),
             e.shikimori_id,
         ));
     }
-    seeds.sort_by(|a, b| b.cmp(a));
+    recent.sort_by(|a, b| b.cmp(a));
+    let mut loved: Vec<(i64, i64)> = entries
+        .iter()
+        .filter_map(|e| Some((e.score.filter(|s| *s >= 8)?, e.shikimori_id)))
+        .collect();
+    loved.sort_by(|a, b| b.cmp(a));
+    let mut seeds: Vec<(i64, usize)> = Vec::new();
+    for (_, id) in loved.into_iter().take(LOVED_SEEDS) {
+        seeds.push((id, 2));
+    }
+    for (_, id) in recent.into_iter() {
+        if seeds.len() >= RECENT_SEEDS + LOVED_SEEDS {
+            break;
+        }
+        if !seeds.iter().any(|(s, _)| *s == id) {
+            seeds.push((id, 1));
+        }
+    }
     let mut lists = Vec::new();
     // One at a time: Shikimori limits how fast it may be asked.
-    for (_, id) in seeds.into_iter().take(RECOMMEND_SEEDS) {
+    for (id, weight) in seeds {
+        let mut found: Vec<Vec<i64>> = Vec::new();
         match catalog.similar_ids(id).await {
-            Ok(list) => lists.push(list),
+            Ok(list) => found.push(list),
             Err(e) => tracing::info!("similar titles of {id}: {e}"),
+        }
+        found.extend(anilist.recommended(id).await);
+        for list in found {
+            for _ in 0..weight {
+                lists.push(list.clone());
+            }
         }
     }
     let ids = merge_similar(&lists, &owned, 18);
