@@ -21,7 +21,7 @@ ninari выходит для Linux и Windows 10 и 11. Версия для macO
 Архив собран на Arch и требует свежих системных библиотек (glibc 2.44 или новее): подойдут Arch, openSUSE Tumbleweed и похожие дистрибутивы.
 
 ```bash
-curl -L https://github.com/onokashino/ninari/releases/download/v0.1.8/ninari-0.1.8-linux-x86_64.tar.gz | tar xz && ./ninari-*/install.sh
+curl -L https://github.com/onokashino/ninari/releases/download/v0.1.9/ninari-0.1.9-linux-x86_64.tar.gz | tar xz && ./ninari-*/install.sh
 ```
 
 Команда скачивает последний релиз, распаковывает его в текущую папку и запускает установщик. Актуальная команда всегда есть на странице [Скачать](../download.html).
