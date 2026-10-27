@@ -276,6 +276,21 @@ impl SettingsPage {
                     .child(action),
             )
             .children(found.and_then(|i| i.notes).map(muted))
+            .child(setting_row(
+                setting_text(
+                    "Что-то не так?",
+                    "Откроется новая задача на GitHub: версия, система и конец лога уже вписаны, осталось описать, что случилось.",
+                ),
+                button(
+                    "report",
+                    "Сообщить о проблеме",
+                    None,
+                    Variant::Glass,
+                    Size::M,
+                    accent,
+                )
+                .on_click(|_, _, cx| cx.open_url(&crate::report::issue_url())),
+            ))
             .children(match (&self.update, progress) {
                 (_, Progress::Failed(e)) => Some(
                     div()

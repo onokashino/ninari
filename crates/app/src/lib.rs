@@ -43,6 +43,7 @@ pub mod posters;
 pub mod rail;
 pub mod random;
 pub mod repo_offer;
+pub mod report;
 pub mod root;
 pub mod schedule;
 pub mod schedule_page;

@@ -1,15 +1,15 @@
-name: Идея / Idea
-description: Предложить новое / Suggest something new
+name: Идея
+description: Предложить новое
 labels: [idea]
 body:
   - type: textarea
     id: idea
     attributes:
-      label: Что хочется / What you'd like
+      label: Что хочется
     validations:
       required: true
   - type: textarea
     id: why
     attributes:
-      label: Зачем / Why
-      description: Какую задачу это решит / What problem it solves
+      label: Зачем
+      description: Какую задачу это решит

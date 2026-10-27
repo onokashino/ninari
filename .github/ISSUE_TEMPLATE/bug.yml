@@ -1,38 +1,41 @@
-name: Ошибка / Bug
-description: Что-то работает не так / Something doesn't work
+name: Ошибка
+description: Что-то работает не так
 labels: [bug]
 body:
+  - type: markdown
+    attributes:
+      value: "Проще всего начать из приложения: «Настройки → Приложение → Сообщить о проблеме» сам впишет версию, систему и лог."
   - type: textarea
     id: what
     attributes:
-      label: Что случилось / What happened
-      description: И что ожидалось вместо этого / And what you expected instead
+      label: Что случилось
+      description: И что ожидалось вместо этого
     validations:
       required: true
   - type: textarea
     id: steps
     attributes:
-      label: Как повторить / Steps to reproduce
+      label: Как повторить
       placeholder: |
         1. Открыть тайтл ...
         2. Нажать ...
   - type: input
     id: version
     attributes:
-      label: Версия / Version
-      placeholder: 0.1.0
+      label: Версия
+      placeholder: 0.1.8
     validations:
       required: true
   - type: input
     id: system
     attributes:
-      label: Система / System
-      placeholder: Arch Linux, KDE Wayland
+      label: Система
+      placeholder: Arch Linux · wayland · KDE
     validations:
       required: true
   - type: textarea
     id: log
     attributes:
-      label: Лог / Log
-      description: Если запускали из терминала / If started from a terminal
+      label: Лог
+      description: Конец файла ninari.log; из приложения подставляется сам
       render: text

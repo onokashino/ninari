@@ -1,8 +1,8 @@
 blank_issues_enabled: true
 contact_links:
-  - name: Документация / Docs
+  - name: Документация
     url: https://onokashino.github.io/ninari/docs/
-    about: Установка, плеер, плагины, частые вопросы / Installing, the player, plugins, FAQ
-  - name: Свой источник / Your own source
+    about: Установка, плеер, плагины, частые вопросы
+  - name: Свой источник
     url: https://onokashino.github.io/ninari/docs/custom-source/
-    about: Как написать плагин-источник / How to write a source plugin
+    about: Как написать плагин-источник
