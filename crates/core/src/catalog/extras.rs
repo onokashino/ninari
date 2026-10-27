@@ -34,6 +34,17 @@ fn between<'a>(s: &'a str, start: &str, end: &str) -> Option<&'a str> {
     Some(&s[i..i + j])
 }
 
+/// At most `max` characters of `text`, cut at a space with "…": a long text clamped to a few
+/// lines on screen is otherwise cut again on every frame.
+pub fn excerpt(text: &str, max: usize) -> String {
+    if text.chars().count() <= max {
+        return text.to_string();
+    }
+    let cut: String = text.chars().take(max).collect();
+    let cut = cut.rsplit_once(' ').map_or(cut.as_str(), |(head, _)| head);
+    format!("{}…", cut.trim_end_matches([',', '.', ';', ':', ' ']))
+}
+
 /// Text of an HTML fragment: line breaks kept, tags dropped, entities read.
 fn plain(html: &str) -> String {
     let with_breaks = html
@@ -94,7 +105,7 @@ pub fn parse_reviews(html: &str) -> Vec<Review> {
                 date,
                 votes_for: votes("votes-for"),
                 votes_against: votes("votes-against"),
-                text: plain(body),
+                text: excerpt(&plain(body).replace('\n', " "), 420),
                 url,
             })
         })
@@ -166,7 +177,7 @@ pub fn parse_synopsis(html: &str) -> Option<String> {
         .collect::<Vec<_>>()
         .join("\n");
     let text = text.trim();
-    (!text.is_empty() && !text.contains("No synopsis")).then(|| text.to_string())
+    (!text.is_empty() && !text.contains("No synopsis")).then(|| excerpt(text, 220))
 }
 
 #[cfg(test)]
@@ -189,7 +200,8 @@ mod tests {
         assert_eq!(r[0].opinion, "neutral");
         assert_eq!(r[0].date, "3 октября 2026");
         assert_eq!((r[0].votes_for, r[0].votes_against), (11, 23));
-        assert_eq!(r[0].text, "Красиво, но\nпусто.\nИтог: смотреть можно.");
+        assert_eq!(r[0].text, "Красиво, но пусто. Итог: смотреть можно.");
+        assert_eq!(excerpt("один два три", 7), "один…");
     }
 
     #[test]

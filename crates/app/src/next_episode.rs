@@ -65,6 +65,7 @@ pub fn next_up(
 pub fn next_card(
     next: &NextUp,
     title: Option<&str>,
+    synopsis: Option<&str>,
     left: Option<String>,
     waiting: Option<String>,
     accent: Hsla,
@@ -154,6 +155,16 @@ pub fn next_card(
                             .text_ellipsis()
                             .child(line),
                     )
+                    .children(synopsis.map(|t| {
+                        div()
+                            .mt(px(2.))
+                            .text_size(px(12.))
+                            .line_height(px(17.))
+                            .text_color(rgb(theme::TEXT_3))
+                            .line_clamp(2)
+                            .text_ellipsis()
+                            .child(t.to_string())
+                    }))
                     .when(fraction > 0., |d| {
                         d.child(
                             div()

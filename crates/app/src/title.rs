@@ -53,6 +53,7 @@ use crate::source_fix::{FixEvent, SourceFix};
 use crate::text_input::{InputEvent, TextInput};
 use crate::theme::{self, Accent};
 use crate::title_about::{More, about, videos};
+use crate::title_more;
 
 pub enum TitleEvent {
     Open(Route),
@@ -122,6 +123,13 @@ struct Season {
     /// The hundred of episodes on screen; the one to continue in when `None`.
     episode_block: Option<usize>,
     similar: Load<Vec<AnimeCard>>,
+    /// Fetched when their sections come near the screen; `None` before.
+    themes: Option<Load<Vec<ninari_core::catalog::extras::Theme>>>,
+    reviews: Option<Load<Vec<ninari_core::catalog::extras::Review>>>,
+    /// Frames as (small picture on disk, the whole one's address).
+    shots: Option<Load<Vec<(PathBuf, String)>>>,
+    /// The synopsis of the episode the "Дальше" card offers.
+    synopsis: Option<(i64, Load<Option<String>>)>,
 }
 
 impl Season {
@@ -138,6 +146,10 @@ impl Season {
             picked_dub: None,
             episode_block: None,
             similar: Load::Pending,
+            themes: None,
+            reviews: None,
+            shots: None,
+            synopsis: None,
         }
     }
 }
@@ -160,7 +172,11 @@ pub struct Title {
     /// Banners for other widths, to free from the GPU on the next frame.
     stale: Vec<Arc<RenderImage>>,
     /// The episodes, the description, the videos and similar titles: built near the screen only.
-    blocks: [Lazy; 4],
+    /// Episodes, about, videos, similar, the order and viewers, reviews.
+    blocks: [Lazy; 6],
+    shots_row: Row,
+    /// The episode the "Дальше" card offered this frame: its synopsis is fetched after.
+    want_synopsis: std::cell::Cell<Option<i64>>,
     status_menu: Menu,
     rating_menu: Menu,
     dub_menu: Menu,
@@ -226,6 +242,8 @@ impl Title {
             dub_menu: Menu::default(),
             similar_row: Row::default(),
             video_rows: Default::default(),
+            shots_row: Row::default(),
+            want_synopsis: Default::default(),
             actions_bounds: Rc::default(),
             about_open: false,
             poster: None,
@@ -481,6 +499,100 @@ impl Title {
             palette: poster(card, cx).map(|(_, p)| p).unwrap_or_default(),
         };
         cx.emit(TitleEvent::Play(request));
+    }
+
+    /// The synopsis of `episode` of the part on screen, fetched once from MyAnimeList.
+    fn fetch_synopsis(&mut self, episode: i64, cx: &mut Context<Self>) {
+        let id = self.shown;
+        let season = self.season_mut(id);
+        if season.synopsis.as_ref().is_some_and(|(e, _)| *e == episode) {
+            return;
+        }
+        season.synopsis = Some((episode, Load::Pending));
+        let job = self
+            .core
+            .run(move |c| async move { c.jikan.synopsis(id, episode).await });
+        cx.spawn(async move |page, cx| {
+            let got = job.await.ok().flatten();
+            page.update(cx, |page, cx| {
+                if let Some((e, slot)) = &mut page.season_mut(id).synopsis
+                    && *e == episode
+                {
+                    *slot = Load::Ready(got);
+                    cx.notify();
+                }
+            })
+            .ok();
+        })
+        .detach();
+    }
+
+    /// Songs and frames (with the videos), reviews: fetched once their sections come near.
+    fn fetch_more(&mut self, close: [bool; 6], cx: &mut Context<Self>) {
+        let id = self.shown;
+        let core = self.core.clone();
+        let season = self.season_mut(id);
+        if close[2] && season.themes.is_none() {
+            season.themes = Some(Load::Pending);
+            fetch(
+                cx,
+                core.run(move |c| async move { c.jikan.themes(id).await }),
+                move |page: &mut Self, got| page.season_mut(id).themes = Some(got),
+            );
+        }
+        let season = self.season_mut(id);
+        if close[2] && season.shots.is_none() {
+            let shots: Vec<ninari_core::catalog::details::Shot> = match &season.details {
+                Load::Ready(d) => d.shots.iter().take(12).cloned().collect(),
+                _ => return,
+            };
+            season.shots = Some(Load::Pending);
+            fetch(
+                cx,
+                core.run(move |c| async move {
+                    let thumbs: Vec<String> = shots.iter().map(|s| s.thumb.clone()).collect();
+                    let got = c.posters.images(&thumbs).await;
+                    Ok(shots
+                        .into_iter()
+                        .zip(got)
+                        .filter_map(|(s, path)| Some((path?, s.full)))
+                        .collect::<Vec<_>>())
+                }),
+                move |page: &mut Self, got| page.season_mut(id).shots = Some(got),
+            );
+        }
+        let season = self.season_mut(id);
+        if close[5] && season.reviews.is_none() {
+            season.reviews = Some(Load::Pending);
+            fetch(
+                cx,
+                core.run(move |c| async move { c.catalog.reviews(id).await }),
+                move |page: &mut Self, got| page.season_mut(id).reviews = Some(got),
+            );
+        }
+    }
+
+    /// A frame over the whole window: its small picture at once, the whole one when in.
+    fn open_frame(&mut self, full: String, small: PathBuf, cx: &mut Context<Self>) {
+        self.poster = Some(crate::poster_view::PosterView::new(small));
+        let job = self
+            .core
+            .run(move |c| async move { Ok(c.posters.image(&full).await) });
+        cx.spawn(async move |page, cx| {
+            let got = job.await.ok().flatten();
+            page.update(cx, |page, cx| {
+                if let Some(v) = &mut page.poster {
+                    match got {
+                        Some(path) => v.sharpen(path),
+                        None => v.sharp = true,
+                    }
+                }
+                cx.notify();
+            })
+            .ok();
+        })
+        .detach();
+        cx.notify();
     }
 
     /// The poster over the whole window: the card's picture at once, the uploaded one when in.
@@ -1084,9 +1196,20 @@ impl Title {
                     let on_play: OnPlay = Rc::new(move |n, _, cx| {
                         page.update(cx, |page, cx| page.play(n, cx)).ok();
                     });
+                    let synopsis = match &next {
+                        NextUp::Play { episode, .. } => {
+                            self.want_synopsis.set(Some(*episode));
+                            match &self.cur().synopsis {
+                                Some((e, Load::Ready(text))) if e == episode => text.clone(),
+                                _ => None,
+                            }
+                        }
+                        _ => None,
+                    };
                     body.extend(next_card(
                         &next,
                         title.as_deref(),
+                        synopsis.as_deref(),
                         left,
                         waiting,
                         accent,
@@ -1574,6 +1697,14 @@ impl Render for Title {
                 )
             }));
 
+        // What the lower sections need is fetched as they come near, not with the page.
+        let close = self
+            .blocks
+            .clone()
+            .map(|b| b.close(lazy_grid::screen(window)));
+        if card_in {
+            self.fetch_more(close, cx);
+        }
         let content = (window.viewport_size().width - px(rail::WIDTH)).min(px(1400.)) - px(96.);
         // The franchise is the same from every part: kept once, so the seasons row stays put
         // while a switched-to part's details are still on the way.
@@ -1652,12 +1783,72 @@ impl Render for Title {
             };
             about(c, details, content, genres, studios, accent, more, on_hero)
         });
-        let videos = details
-            .filter(|_| near[2])
-            .and_then(|d| videos(&d.videos, &self.video_rows, accent, window, cx));
+        let videos = near[2]
+            .then(|| {
+                let page = cx.entity().downgrade();
+                let on_frame: Rc<dyn Fn(String, PathBuf, &mut Window, &mut gpui::App)> =
+                    Rc::new(move |full, small, _, cx| {
+                        page.update(cx, |page, cx| page.open_frame(full, small, cx))
+                            .ok();
+                    });
+                let season = self.cur();
+                let parts = [
+                    details.and_then(|d| videos(&d.videos, &self.video_rows, accent, window, cx)),
+                    match &season.shots {
+                        Some(Load::Ready(list)) => {
+                            title_more::shots(list, &self.shots_row, on_frame, window, cx)
+                        }
+                        _ => None,
+                    },
+                    match &season.themes {
+                        Some(Load::Ready(list)) => title_more::themes(list, accent),
+                        _ => None,
+                    },
+                ];
+                let parts: Vec<Div> = parts.into_iter().flatten().collect();
+                (!parts.is_empty()).then(|| div().flex().flex_col().gap(px(40.)).children(parts))
+            })
+            .flatten();
+        let order_viewers = near[4]
+            .then(|| {
+                let page = cx.entity().downgrade();
+                let on_part: Rc<dyn Fn(i64, &mut Window, &mut gpui::App)> =
+                    Rc::new(move |id, _, cx| {
+                        page.update(cx, |page, cx| {
+                            page.show(id, cx);
+                            cx.emit(TitleEvent::Season(id));
+                        })
+                        .ok();
+                    });
+                let order = title_more::watch_order(&self.franchise, self.shown, accent, on_part);
+                let seen = details.and_then(|d| title_more::viewers(&d.viewers, accent));
+                (order.is_some() || seen.is_some()).then(|| {
+                    div()
+                        .flex()
+                        .flex_wrap()
+                        .items_start()
+                        .gap(px(32.))
+                        .children(order.map(|o| o.flex_1().min_w(px(420.))))
+                        .children(seen.map(|v| v.flex_1().min_w(px(420.))))
+                })
+            })
+            .flatten();
+        let reviews = near[5]
+            .then(|| match &self.cur().reviews {
+                Some(Load::Ready(list)) => title_more::reviews(
+                    list,
+                    format!("https://shikimori.io/animes/{}/reviews", self.shown),
+                    accent,
+                ),
+                _ => None,
+            })
+            .flatten();
         let similar = near[3]
             .then(|| self.similar_section(details, accent, window, cx))
             .flatten();
+        if let Some(episode) = self.want_synopsis.take() {
+            self.fetch_synopsis(episode, cx);
+        }
         let sticky = card
             .as_ref()
             .and_then(|c| self.sticky_bar(c, accent, window, cx));
@@ -1709,9 +1900,17 @@ impl Render for Title {
                     )
                 }),
             ))
+            .child(self.blocks[4].slot(
+                near[4],
+                order_viewers.map(|v| div().opacity(rest).child(v).into_any_element()),
+            ))
             .child(self.blocks[2].slot(
                 near[2],
                 videos.map(|v| div().opacity(rest).child(v).into_any_element()),
+            ))
+            .child(self.blocks[5].slot(
+                near[5],
+                reviews.map(|v| div().opacity(rest).child(v).into_any_element()),
             ))
             .child(self.blocks[3].slot(
                 near[3],

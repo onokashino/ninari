@@ -249,6 +249,11 @@ impl Posters {
             .map(String::from)
     }
 
+    /// Several pictures at once, as `image` each.
+    pub async fn images(&self, urls: &[String]) -> Vec<Option<PathBuf>> {
+        futures_util::future::join_all(urls.iter().map(|u| self.image(u))).await
+    }
+
     /// A small picture (a character, a voice actor) kept under `people/`, downloaded once; the
     /// app cannot show remote images, only files it serves itself.
     pub async fn image(&self, url: &str) -> Option<PathBuf> {

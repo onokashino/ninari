@@ -69,6 +69,7 @@ pub mod theme;
 pub mod thumbs;
 pub mod title;
 pub mod title_about;
+pub mod title_more;
 pub mod updates;
 #[cfg(target_os = "linux")]
 pub mod video;

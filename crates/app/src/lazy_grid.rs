@@ -174,11 +174,18 @@ mod list_tests {
 pub struct Lazy(Rc<Cell<Option<(f32, f32)>>>);
 
 impl Lazy {
-    /// Whether the block is within a screen of the window (or not measured yet): build it.
+    /// Whether the block is on screen or a quarter of a screen from it (or not measured yet):
+    /// build it. Its height is kept while away, so building it late moves nothing.
     pub fn near(&self, screen: f32) -> bool {
         self.0
             .get()
-            .is_none_or(|(top, height)| top < 2. * screen && top + height > -screen)
+            .is_none_or(|(top, height)| top < 1.25 * screen && top + height > -0.25 * screen)
+    }
+
+    /// Measured and within a screen: the moment to fetch what the block needs, not on the first
+    /// frame when every block is built to measure it.
+    pub fn close(&self, screen: f32) -> bool {
+        self.0.get().is_some() && self.near(screen)
     }
 
     /// `block` (built when `near`, and maybe nothing to show); away, the room it took.
