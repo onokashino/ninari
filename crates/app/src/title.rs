@@ -184,6 +184,8 @@ pub struct Title {
     video_rows: [Row; 2],
     /// "Ещё" under the facts is open, and the height of what it hides.
     about_open: bool,
+    /// The whole watch order is open, not only its first parts.
+    order_open: bool,
     /// The poster open over the whole window.
     poster: Option<crate::poster_view::PosterView>,
     about_h: Rc<Cell<Pixels>>,
@@ -247,6 +249,7 @@ impl Title {
             actions_bounds: Rc::default(),
             about_open: false,
             poster: None,
+            order_open: false,
             about_h: Rc::default(),
             hovered_score: None,
         };
@@ -1820,16 +1823,35 @@ impl Render for Title {
                         })
                         .ok();
                     });
-                let order = title_more::watch_order(&self.franchise, self.shown, accent, on_part);
+                let page = cx.entity().downgrade();
+                let on_more: Rc<dyn Fn(&mut Window, &mut gpui::App)> = Rc::new(move |_, cx| {
+                    page.update(cx, |page, cx| {
+                        page.order_open = !page.order_open;
+                        cx.notify();
+                    })
+                    .ok();
+                });
+                let order = title_more::watch_order(
+                    &self.franchise,
+                    self.shown,
+                    self.order_open,
+                    accent,
+                    on_part,
+                    on_more,
+                );
                 let seen = details.and_then(|d| title_more::viewers(&d.viewers, accent));
+                // Side by side when both fit, each half the width; a set width and no wrapping
+                // spares the layout measuring them twice.
+                let half = (content - px(32.)) / 2.;
+                let wide = half >= px(420.);
                 (order.is_some() || seen.is_some()).then(|| {
                     div()
                         .flex()
-                        .flex_wrap()
+                        .when(!wide, |d| d.flex_col())
                         .items_start()
                         .gap(px(32.))
-                        .children(order.map(|o| o.flex_1().min_w(px(420.))))
-                        .children(seen.map(|v| v.flex_1().min_w(px(420.))))
+                        .children(order.map(|o| o.when(wide, |o| o.w(half))))
+                        .children(seen.map(|v| v.when(wide, |v| v.w(half))))
                 })
             })
             .flatten();

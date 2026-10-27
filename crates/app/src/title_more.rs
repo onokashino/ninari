@@ -33,7 +33,7 @@ fn muted(text: impl Into<gpui::SharedString>) -> Div {
 /// "13,7 тыс", "1,2 млн".
 pub fn short_count(n: i64) -> String {
     let one = |v: f64, unit: &str| {
-        let s = if v < 10. {
+        let s = if v < 100. {
             format!("{v:.1}")
         } else {
             format!("{v:.0}")
@@ -48,71 +48,95 @@ pub fn short_count(n: i64) -> String {
 }
 
 /// The franchise in the order it came out: the story's line first, the rest marked as aside.
-pub fn watch_order(parts: &[Part], shown: i64, accent: Hsla, on_part: OnId) -> Option<Div> {
+/// Parts shown before "Ещё".
+const ORDER_SHOWN: usize = 6;
+
+pub fn watch_order(
+    parts: &[Part],
+    shown: i64,
+    all: bool,
+    accent: Hsla,
+    on_part: OnId,
+    on_more: Rc<dyn Fn(&mut Window, &mut App)>,
+) -> Option<Div> {
     if parts.len() < 3 {
         return None;
     }
-    let rows = parts.iter().enumerate().map(|(i, p)| {
-        let here = p.id == shown;
-        let open = on_part.clone();
-        let id = p.id;
-        let facts = [
-            Some(kind_label(Some(&p.kind))).filter(|k| !k.is_empty()),
-            p.year.map(|y| y.to_string()),
-            (p.episodes > 1).then(|| format!("{} эп.", p.episodes)),
-        ]
-        .into_iter()
-        .flatten()
-        .collect::<Vec<_>>()
-        .join(" · ");
-        div()
-            .id(("order", i))
-            .flex()
-            .items_center()
-            .gap(px(14.))
-            .px(px(14.))
-            .py(px(9.))
-            .rounded(px(12.))
-            .cursor_pointer()
-            .when(here, |d| d.bg(accent.opacity(0.14)))
-            .when(!here, |d| d.hover(|s| s.bg(theme::glass())))
-            .on_click(move |_, window, cx| open(id, window, cx))
-            .child(
-                div()
-                    .w(px(26.))
-                    .flex_none()
-                    .text_color(if here {
-                        accent
+    let more = parts.len().saturating_sub(ORDER_SHOWN);
+    let rows = parts
+        .iter()
+        .take(if all { parts.len() } else { ORDER_SHOWN })
+        .enumerate()
+        .map(|(i, p)| {
+            let here = p.id == shown;
+            let open = on_part.clone();
+            let id = p.id;
+            let facts = [
+                Some(kind_label(Some(&p.kind))).filter(|k| !k.is_empty()),
+                p.year.map(|y| y.to_string()),
+                (p.episodes > 1).then(|| format!("{} эп.", p.episodes)),
+            ]
+            .into_iter()
+            .flatten()
+            .collect::<Vec<_>>()
+            .join(" · ");
+            div()
+                .id(("order", i))
+                .px(px(14.))
+                .py(px(8.))
+                .rounded(px(12.))
+                .line_height(px(20.))
+                .cursor_pointer()
+                .when(here, |d| d.bg(accent.opacity(0.14)))
+                .when(!here, |d| d.hover(|s| s.bg(theme::glass())))
+                .on_click(move |_, window, cx| open(id, window, cx))
+                // One text for the number, the name and the facts, coloured in parts: as nested
+                // divs a row was six layout nodes.
+                .child({
+                    let number = format!("{}   ", i + 1);
+                    let skip = if p.main_line {
+                        ""
                     } else {
-                        rgb(theme::TEXT_3).into()
-                    })
-                    .font_weight(FontWeight::EXTRA_BOLD)
-                    .child((i + 1).to_string()),
-            )
-            .child(
-                div()
-                    .flex_1()
-                    .min_w(px(0.))
-                    .flex()
-                    .flex_col()
-                    .gap(px(2.))
-                    .child(
-                        div()
-                            .font_weight(FontWeight::BOLD)
-                            .text_color(rgb(if p.main_line {
-                                theme::TEXT
-                            } else {
-                                theme::TEXT_2
-                            }))
-                            .overflow_hidden()
-                            .whitespace_nowrap()
-                            .text_ellipsis()
-                            .child(p.name.clone()),
-                    )
-                    .child(muted(facts)),
-            )
-            .when(!p.main_line, |d| d.child(muted("можно пропустить")))
-    });
+                        " · можно пропустить"
+                    };
+                    let text = format!("{number}{}\n{facts}{skip}", p.name);
+                    let name_end = number.len() + p.name.len();
+                    let muted = gpui::HighlightStyle {
+                        color: Some(rgb(theme::TEXT_3).into()),
+                        ..Default::default()
+                    };
+                    gpui::StyledText::new(text.clone()).with_highlights([
+                        (
+                            0..number.len(),
+                            gpui::HighlightStyle {
+                                color: Some(if here {
+                                    accent
+                                } else {
+                                    rgb(theme::TEXT_3).into()
+                                }),
+                                font_weight: Some(FontWeight::EXTRA_BOLD),
+                                ..Default::default()
+                            },
+                        ),
+                        (
+                            number.len()..name_end,
+                            gpui::HighlightStyle {
+                                color: Some(
+                                    rgb(if p.main_line {
+                                        theme::TEXT
+                                    } else {
+                                        theme::TEXT_2
+                                    })
+                                    .into(),
+                                ),
+                                font_weight: Some(FontWeight::BOLD),
+                                ..Default::default()
+                            },
+                        ),
+                        (name_end..text.len(), muted),
+                    ])
+                })
+        });
     Some(
         block("Порядок просмотра").child(
             div()
@@ -124,7 +148,26 @@ pub fn watch_order(parts: &[Part], shown: i64, accent: Hsla, on_part: OnId) -> O
                 .bg(theme::glass())
                 .border_1()
                 .border_color(theme::line())
-                .children(rows),
+                .children(rows)
+                .when(more > 0, |d| {
+                    d.child(
+                        div()
+                            .id("order-more")
+                            .px(px(14.))
+                            .py(px(6.))
+                            .cursor_pointer()
+                            .text_size(px(13.))
+                            .font_weight(FontWeight::BOLD)
+                            .text_color(accent)
+                            .hover(|s| s.underline())
+                            .on_click(move |_, window, cx| on_more(window, cx))
+                            .child(if all {
+                                "Свернуть".to_string()
+                            } else {
+                                format!("Ещё {more}")
+                            }),
+                    )
+                }),
         ),
     )
 }
@@ -135,44 +178,63 @@ pub fn viewers(v: &Viewers, accent: Hsla) -> Option<Div> {
     if votes == 0 {
         return None;
     }
+    // Ten bars are one painted element and the numbers two texts of a line each: as rows of
+    // divs they were fifty layout nodes laid out on every frame of a scroll.
+    const LINE: f32 = 18.;
     let top = v.scores.iter().map(|(_, n)| *n).max().unwrap_or(1).max(1) as f32;
-    let bars = v.scores.iter().map(|(score, n)| {
-        let share = *n as f32 / votes as f32;
+    let shares: Vec<(f32, f32)> = v
+        .scores
+        .iter()
+        .map(|(score, n)| (*n as f32 / top, *score as f32 / 10.))
+        .collect();
+    let rows = shares.len() as f32;
+    let column = |lines: Vec<String>, w: f32| {
         div()
-            .flex()
-            .items_center()
-            .gap(px(10.))
-            .child(
-                div()
-                    .w(px(18.))
-                    .flex_none()
-                    .text_size(px(12.))
-                    .text_color(rgb(theme::TEXT_3))
-                    .child(score.to_string()),
-            )
-            .child(
-                div()
-                    .flex_1()
-                    .h(px(8.))
-                    .rounded_full()
-                    .bg(theme::glass())
-                    .child(
-                        div()
-                            .h_full()
-                            .w(gpui::relative(*n as f32 / top))
-                            .rounded_full()
-                            .bg(accent.opacity(0.35 + 0.65 * (*score as f32 / 10.))),
-                    ),
-            )
-            .child(
-                div()
-                    .w(px(44.))
-                    .flex_none()
-                    .text_size(px(12.))
-                    .text_color(rgb(theme::TEXT_3))
-                    .child(format!("{:.0}%", share * 100.)),
-            )
-    });
+            .w(px(w))
+            .flex_none()
+            .text_size(px(12.))
+            .line_height(px(LINE))
+            .text_color(rgb(theme::TEXT_3))
+            .child(lines.join("\n"))
+    };
+    let track = theme::glass();
+    let bars = gpui::canvas(
+        |_, _, _| {},
+        move |bounds, _, window, _| {
+            for (i, (fill_share, strength)) in shares.iter().enumerate() {
+                let y = bounds.top() + px(LINE * i as f32 + (LINE - 8.) / 2.);
+                let full = gpui::Bounds::new(
+                    gpui::point(bounds.left(), y),
+                    gpui::size(bounds.size.width, px(8.)),
+                );
+                window.paint_quad(gpui::fill(full, track).corner_radii(px(4.)));
+                let part = gpui::Bounds::new(
+                    full.origin,
+                    gpui::size((bounds.size.width * *fill_share).max(px(8.)), px(8.)),
+                );
+                window.paint_quad(
+                    gpui::fill(part, accent.opacity(0.35 + 0.65 * strength)).corner_radii(px(4.)),
+                );
+            }
+        },
+    )
+    .flex_1()
+    .h(px(LINE * rows));
+    let histogram = div()
+        .flex()
+        .gap(px(10.))
+        .child(column(
+            v.scores.iter().map(|(s, _)| s.to_string()).collect(),
+            18.,
+        ))
+        .child(bars)
+        .child(column(
+            v.scores
+                .iter()
+                .map(|(_, n)| format!("{:.0}%", *n as f32 / votes as f32 * 100.))
+                .collect(),
+            44.,
+        ));
     let label = |s: &str| match s {
         "watching" => "Смотрят",
         "completed" => "Посмотрели",
@@ -181,23 +243,29 @@ pub fn viewers(v: &Viewers, accent: Hsla) -> Option<Div> {
         "dropped" => "Бросили",
         _ => "",
     };
-    let statuses = v
-        .statuses
-        .iter()
-        .filter(|(s, _)| !label(s).is_empty())
-        .map(|(s, n)| {
-            div()
-                .flex()
-                .flex_col()
-                .gap(px(2.))
-                .child(
-                    div()
-                        .text_size(px(18.))
-                        .font_weight(FontWeight::EXTRA_BOLD)
-                        .child(short_count(*n)),
-                )
-                .child(muted(label(s)))
-        });
+    // One text, the counts in bold: as a column per status it was fifteen layout nodes.
+    let mut line = String::new();
+    let mut bold = Vec::new();
+    for (status, n) in v.statuses.iter().filter(|(s, _)| !label(s).is_empty()) {
+        if !line.is_empty() {
+            line.push_str("     ");
+        }
+        let count = short_count(*n).replace(' ', "\u{a0}");
+        bold.push((
+            line.len()..line.len() + count.len(),
+            gpui::HighlightStyle {
+                font_weight: Some(FontWeight::EXTRA_BOLD),
+                color: Some(rgb(theme::TEXT).into()),
+                ..Default::default()
+            },
+        ));
+        // No break inside "4,7 тыс бросили".
+        line.push_str(&format!("{count} {}", label(status).to_lowercase()).replace(' ', "\u{a0}"));
+    }
+    let statuses = div()
+        .text_size(px(14.))
+        .text_color(rgb(theme::TEXT_3))
+        .child(gpui::StyledText::new(line).with_highlights(bold));
     Some(
         block("Зрители").child(
             div()
@@ -211,8 +279,8 @@ pub fn viewers(v: &Viewers, accent: Hsla) -> Option<Div> {
                 .border_1()
                 .border_color(theme::line())
                 .child(muted(format!("{} оценок на Shikimori", short_count(votes))))
-                .child(div().flex().flex_col().gap(px(6.)).children(bars))
-                .child(div().flex().flex_wrap().gap(px(28.)).children(statuses)),
+                .child(histogram)
+                .child(statuses),
         ),
     )
 }
