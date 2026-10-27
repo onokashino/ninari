@@ -1,6 +1,6 @@
 pkgbase = ninari-bin
 	pkgdesc = Аниме из всех озвучек в одном окне: каталог Shikimori, источники-плагины, плеер mpv с Anime4K
-	pkgver = 0.1.9
+	pkgver = 0.1.10
 	pkgrel = 1
 	url = https://onokashino.github.io/ninari/
 	arch = x86_64
@@ -20,7 +20,7 @@ pkgbase = ninari-bin
 	conflicts = ninari
 	options = !strip
 	options = !debug
-	source = https://github.com/onokashino/ninari/releases/download/v0.1.9/ninari-0.1.9-linux-x86_64.tar.gz
-	sha256sums = bf2db989ecc076e45527a27ed8ab317af34099df099192a9ff42ca35feb7809e
+	source = https://github.com/onokashino/ninari/releases/download/v0.1.10/ninari-0.1.10-linux-x86_64.tar.gz
+	sha256sums = 5260e6ff5eab294928020082ec882a6a22af42088d2a644e23cdfb947fd5dd97
 
 pkgname = ninari-bin

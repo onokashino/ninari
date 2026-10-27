@@ -1,6 +1,6 @@
 # Maintainer: onokashino <onokashino@proton.me>
 pkgname=ninari-bin
-pkgver=0.1.9
+pkgver=0.1.10
 pkgrel=1
 pkgdesc="Аниме из всех озвучек в одном окне: каталог Shikimori, источники-плагины, плеер mpv с Anime4K"
 arch=('x86_64')
@@ -13,7 +13,7 @@ provides=('ninari')
 conflicts=('ninari')
 options=('!strip' '!debug')
 source=("https://github.com/onokashino/ninari/releases/download/v${pkgver}/ninari-${pkgver}-linux-x86_64.tar.gz")
-sha256sums=('bf2db989ecc076e45527a27ed8ab317af34099df099192a9ff42ca35feb7809e')
+sha256sums=('5260e6ff5eab294928020082ec882a6a22af42088d2a644e23cdfb947fd5dd97')
 
 package() {
   cd "ninari-${pkgver}-linux-x86_64"
