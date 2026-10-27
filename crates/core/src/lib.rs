@@ -13,6 +13,7 @@ pub mod library;
 pub mod maintenance;
 pub mod mal;
 pub mod net;
+pub mod pace;
 pub mod player;
 pub mod proxy;
 pub mod sources;

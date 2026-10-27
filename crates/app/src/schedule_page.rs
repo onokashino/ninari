@@ -1,6 +1,7 @@
 //! The week's schedule: a day at a time, everything or only the user's titles, today's aired
 //! episodes stepping back under a "Сейчас" line.
 
+use std::collections::HashMap;
 use std::sync::Arc;
 
 use gpui::{
@@ -9,6 +10,7 @@ use gpui::{
 };
 use ninari_core::catalog::calendar::unix_of;
 use ninari_core::feeds::{self, ScheduleItem};
+use ninari_core::pace;
 
 use crate::cards::poster_frame;
 use crate::clock::{is_followed, local_day, local_time, now, utc_offset};
@@ -29,6 +31,8 @@ pub struct SchedulePage {
     day: usize,
     mine: bool,
     days_row: Row,
+    /// The teams carrying each title: name, episodes out, usual delay in hours.
+    dubs: HashMap<i64, Vec<(String, i64, Option<i64>)>>,
 }
 
 impl EventEmitter<PageEvent> for SchedulePage {}
@@ -41,13 +45,35 @@ impl SchedulePage {
             day: 0,
             mine: false,
             days_row: Row::default(),
+            dubs: HashMap::new(),
         };
         fetch(
             cx,
             page.core.run(|c| async move {
-                feeds::schedule(&c.schedule, &c.catalog, &c.library, &c.posters).await
+                let list = feeds::schedule(&c.schedule, &c.catalog, &c.library, &c.posters).await?;
+                let ids: Vec<i64> = list.iter().map(|it| it.card.anime.id).collect();
+                let seen = pace::seen(&c.db, &ids)?;
+                let dubs = list
+                    .iter()
+                    .filter_map(|it| {
+                        let rows = seen.get(&it.card.anime.id)?;
+                        let paces = pace::pace(rows, it.episode, unix_of(&it.at)?)
+                            .into_iter()
+                            .map(|p| (c.resolver.dub_name(&p.key), p.episodes, p.lag_hours))
+                            .collect();
+                        Some((it.card.anime.id, paces))
+                    })
+                    .collect::<HashMap<_, _>>();
+                Ok((list, dubs))
             }),
-            |page, list| page.list = list,
+            |page, got| match got {
+                Load::Ready((list, dubs)) => {
+                    page.list = Load::Ready(list);
+                    page.dubs = dubs;
+                }
+                Load::Failed(e) => page.list = Load::Failed(e),
+                Load::Pending => {}
+            },
         );
         page
     }
@@ -287,6 +313,11 @@ impl Render for SchedulePage {
                                         .text_color(rgb(theme::TEXT_2))
                                         .text_size(px(13.))
                                         .child(episode_line(it.episode, it.card.anime.episodes)),
+                                )
+                                .children(
+                                    self.dubs
+                                        .get(&id)
+                                        .map(|dubs| dub_line(dubs, it.episode, accent)),
                                 ),
                         )
                         .children(it.status.as_deref().map(|s| {
@@ -384,6 +415,53 @@ impl Render for SchedulePage {
 }
 
 /// The user's time zone as "UTC+4" or "UTC+5:30".
+/// The teams carrying the title, furthest first: those with this episode already lit, and how
+/// long after Japan the quickest one usually comes.
+fn dub_line(dubs: &[(String, i64, Option<i64>)], episode: i64, accent: gpui::Hsla) -> gpui::Div {
+    const SHOWN: usize = 3;
+    let quickest = dubs
+        .iter()
+        .filter_map(|(name, _, lag)| Some((lag.as_ref()?, name)))
+        .min();
+    div()
+        .flex()
+        .flex_wrap()
+        .items_center()
+        .gap(px(6.))
+        .pt(px(2.))
+        .text_size(px(12.))
+        .children(dubs.iter().take(SHOWN).map(|(name, have, _)| {
+            let out = *have >= episode;
+            div()
+                .px(px(8.))
+                .py(px(2.))
+                .rounded_full()
+                .font_weight(FontWeight::SEMIBOLD)
+                .map(|d| {
+                    if out {
+                        d.bg(accent.opacity(0.18)).text_color(rgb(theme::TEXT))
+                    } else {
+                        d.bg(theme::glass_strong()).text_color(rgb(theme::TEXT_2))
+                    }
+                })
+                .child(format!("{name} · {have}"))
+        }))
+        .when(dubs.len() > SHOWN, |d| {
+            d.child(
+                div()
+                    .text_color(rgb(theme::TEXT_3))
+                    .child(format!("и ещё {}", dubs.len() - SHOWN)),
+            )
+        })
+        .children(quickest.map(|(lag, name)| {
+            div().text_color(rgb(theme::TEXT_3)).child(match lag {
+                0 => format!("{name} обычно выходит в течение часа"),
+                h if *h < 24 => format!("{name} обычно через ~{h} ч"),
+                h => format!("{name} обычно через ~{} дн", (h + 12) / 24),
+            })
+        }))
+}
+
 fn zone_label(at: i64) -> String {
     let offset = utc_offset(at);
     let sign = if offset < 0 { '-' } else { '+' };
