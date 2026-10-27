@@ -26,7 +26,17 @@ fn main_window(cx: &App) -> Option<WindowHandle<Root>> {
 }
 
 fn open_window(core: &Arc<Core>, autoplay: bool, page: Option<Route>, cx: &mut App) {
-    let bounds = Bounds::centered(None, size(px(1440.), px(900.)), cx);
+    // 1440x900, but never larger than most of the screen: on a 1366x768 laptop a bigger window
+    // put its title bar above the top edge.
+    let screen = cx
+        .primary_display()
+        .map(|d| d.bounds().size)
+        .unwrap_or(size(px(1440.), px(900.)));
+    let fit = size(
+        px(1440.).min(screen.width * 0.9),
+        px(900.).min(screen.height * 0.85),
+    );
+    let bounds = Bounds::centered(None, fit, cx);
     let core = core.clone();
     let window = cx
         .open_window(
