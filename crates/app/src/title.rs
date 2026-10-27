@@ -490,8 +490,16 @@ impl Title {
         }
         let job = crate::poster_view::load_full(&self.core, id);
         cx.spawn(async move |page, cx| {
-            let Ok(Some(full)) = job.await else { return };
+            let full = job.await.ok().flatten();
             page.update(cx, |page, cx| {
+                let Some(full) = full else {
+                    // Nothing bigger anywhere: the card's own picture is the best there is.
+                    if let Some(v) = &mut page.poster {
+                        v.sharp = true;
+                    }
+                    cx.notify();
+                    return;
+                };
                 match &mut page.poster {
                     Some(v) => v.sharpen(full),
                     None => page.poster = Some(crate::poster_view::PosterView::new(full)),
@@ -1401,6 +1409,7 @@ impl Render for Title {
                 poster_frame(c, px(220.), theme::R_M, cx)
                     .id("cover")
                     .cursor_pointer()
+                    .hover(|s| s.top(px(-4.)))
                     .on_click(
                         cx.listener(move |page, _, _, cx| page.open_poster(id, small.clone(), cx)),
                     )
@@ -1691,7 +1700,7 @@ impl Render for Title {
                 similar.map(|v| div().opacity(rest).child(v).into_any_element()),
             ))
             .children(sticky)
-            .children(self.poster.as_ref().map(|v| {
+            .children(self.poster.as_mut().map(|v| {
                 crate::poster_view::render(|page: &mut Self| &mut page.poster, v, window, cx)
             }))
     }

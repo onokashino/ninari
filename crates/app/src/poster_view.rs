@@ -4,6 +4,7 @@
 
 use std::path::PathBuf;
 use std::sync::Arc;
+use std::time::{Duration, Instant};
 
 use gpui::{
     AnchoredPositionMode, AnyElement, ClickEvent, Context, MouseButton, MouseDownEvent,
@@ -17,6 +18,9 @@ use crate::theme;
 
 const MAX_SCALE: f32 = 6.;
 const CLOSE_UP: f32 = 2.5;
+const OPEN: Duration = Duration::from_millis(240);
+/// How fast the shown zoom catches up with the wanted one, per second.
+const PACE: f32 = 16.;
 
 pub struct PosterView {
     /// The picture: the card's own until the full one is in.
@@ -29,6 +33,12 @@ pub struct PosterView {
     pan: Point<Pixels>,
     /// A drag: where the pointer went down, the pan then, and whether it moved.
     drag: Option<(Point<Pixels>, Point<Pixels>, bool)>,
+    /// What is drawn, easing towards `scale` and `pan`.
+    shown: (f32, Point<Pixels>),
+    last: Instant,
+    opened: Instant,
+    /// The biggest poster is in (or there is none to wait for).
+    pub sharp: bool,
 }
 
 impl PosterView {
@@ -40,7 +50,29 @@ impl PosterView {
             scale: 1.,
             pan: Point::default(),
             drag: None,
+            shown: (1., Point::default()),
+            last: Instant::now(),
+            opened: Instant::now(),
+            sharp: false,
         }
+    }
+
+    /// Eases what is drawn towards what is wanted; whether it is still moving.
+    fn step(&mut self) -> bool {
+        let now = Instant::now();
+        let dt = (now - self.last).as_secs_f32().min(0.1);
+        self.last = now;
+        if self.drag.is_some() {
+            self.shown = (self.scale, self.pan);
+            return false;
+        }
+        let k = 1. - (-PACE * dt).exp();
+        let (s, p) = self.shown;
+        let next = (s + (self.scale - s) * k, p + (self.pan - p) * k);
+        let done = (next.0 - self.scale).abs() < 0.002
+            && f32::from((next.1.x - self.pan.x).abs() + (next.1.y - self.pan.y).abs()) < 0.5;
+        self.shown = if done { (self.scale, self.pan) } else { next };
+        !done
     }
 
     /// The bigger picture arrived: shown in its place at the same zoom.
@@ -49,12 +81,16 @@ impl PosterView {
         *self = Self {
             scale: self.scale,
             pan: self.pan,
+            shown: self.shown,
+            opened: self.opened,
+            sharp: true,
             ..Self::new(path)
         };
         // Same shape: the zoom and the place stay right; another shape starts over.
         if ((self.size.0 / self.size.1) - (size.0 / size.1)).abs() > 0.02 {
             self.scale = 1.;
             self.pan = Point::default();
+            self.shown = (1., Point::default());
         }
     }
 
@@ -70,32 +106,37 @@ impl PosterView {
     }
 }
 
-/// The poster as uploaded to Shikimori, downloaded once; `None` when there is none.
+/// The biggest poster the sources have, downloaded once; `None` when there is none.
 pub fn load_full(
     core: &Arc<Core>,
     id: i64,
 ) -> impl Future<Output = anyhow::Result<Option<PathBuf>>> + use<> {
     core.run(move |c| async move {
-        let Some(url) = c.catalog.poster_original(id).await? else {
-            return Ok(None);
-        };
-        Ok(c.posters.image(&url).await)
+        let original = c.catalog.poster_original(id).await.ok().flatten();
+        Ok(c.posters.full(id, original).await)
     })
 }
 
 /// The view over the window for the page `V`, which keeps it at `slot`.
 pub fn render<V: 'static>(
     slot: fn(&mut V) -> &mut Option<PosterView>,
-    view: &PosterView,
+    view: &mut PosterView,
     window: &mut Window,
     cx: &mut Context<V>,
 ) -> AnyElement {
+    let opening = (view.opened.elapsed().as_secs_f32() / OPEN.as_secs_f32()).min(1.);
+    let opening = theme::EASE.at(opening);
+    if view.step() || opening < 1. {
+        window.request_animation_frame();
+    }
+    let (scale, pan) = view.shown;
+    let scale = scale * (0.96 + 0.04 * opening);
     let screen = window.viewport_size();
     let (w, h) = view.size;
     let fit = (f32::from(screen.width) * 0.92 / w).min(f32::from(screen.height) * 0.92 / h);
-    let (pw, ph) = (px(w * fit * view.scale), px(h * fit * view.scale));
+    let (pw, ph) = (px(w * fit * scale), px(h * fit * scale));
     let middle = point(screen.width / 2., screen.height / 2.);
-    let origin = middle + view.pan - point(pw / 2., ph / 2.);
+    let origin = middle + pan - point(pw / 2., ph / 2.);
     let page = cx.entity().downgrade();
     crate::popover::close_on_escape(cx, move |_, cx| {
         page.update(cx, |page, cx| {
@@ -114,6 +155,7 @@ pub fn render<V: 'static>(
         .w(screen.width)
         .h(screen.height)
         .bg(rgba(0x05050af0))
+        .opacity(opening)
         .cursor(if view.drag.is_some() {
             gpui::CursorStyle::ClosedHand
         } else if view.scale > 1. {
@@ -193,6 +235,23 @@ pub fn render<V: 'static>(
                         .object_fit(ObjectFit::Contain),
                 ),
         )
+        .when(!view.sharp, |d| {
+            d.child(
+                div()
+                    .absolute()
+                    .bottom(px(24.))
+                    .left(screen.width / 2. - px(130.))
+                    .w(px(260.))
+                    .py(px(8.))
+                    .rounded_full()
+                    .bg(theme::glass_strong())
+                    .text_size(px(13.))
+                    .text_color(gpui::rgb(theme::TEXT_2))
+                    .flex()
+                    .justify_center()
+                    .child("Загружаю в высоком качестве…"),
+            )
+        })
         .child(
             div()
                 .id("poster-close")

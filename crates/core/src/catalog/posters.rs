@@ -194,6 +194,61 @@ impl Posters {
         Ok(path)
     }
 
+    /// The largest poster any source has, for looking at it whole: Shikimori's upload (`original`),
+    /// Kitsu's and AniList's, the biggest of them kept under `full/`. Kitsu sometimes has the
+    /// studio's key visual at 4K where the others stop at 700 pixels.
+    pub async fn full(&self, id: i64, original: Option<String>) -> Option<PathBuf> {
+        let dir = self.dir.join("full");
+        if let Some(found) = std::fs::read_dir(&dir).ok().and_then(|entries| {
+            entries
+                .filter_map(|e| e.ok())
+                .map(|e| e.path())
+                .find(|p| p.file_stem().is_some_and(|s| s == id.to_string().as_str()))
+        }) {
+            return Some(found);
+        }
+        let kitsu = self.kitsu_poster(id);
+        let anilist = async { self.anilist.art(id).await.and_then(|a| a.cover) };
+        let (kitsu, anilist) = tokio::join!(kitsu, anilist);
+        let urls: Vec<String> = [original, kitsu, anilist].into_iter().flatten().collect();
+        let got = futures_util::future::join_all(urls.iter().map(|u| self.download(u))).await;
+        let pixels = |bytes: &[u8]| {
+            image::ImageReader::new(std::io::Cursor::new(bytes))
+                .with_guessed_format()
+                .ok()
+                .and_then(|r| r.into_dimensions().ok())
+                .map_or(0, |(w, h)| u64::from(w) * u64::from(h))
+        };
+        let (url, bytes) = urls
+            .iter()
+            .zip(got)
+            .filter_map(|(u, b)| Some((u, b.ok()?)))
+            .max_by_key(|(_, b)| pixels(b))?;
+        let ext = url
+            .rsplit('.')
+            .next()
+            .filter(|e| e.len() <= 4 && e.chars().all(|c| c.is_ascii_alphanumeric()))
+            .unwrap_or("jpg");
+        std::fs::create_dir_all(&dir).ok()?;
+        let path = dir.join(format!("{id}.{ext}"));
+        std::fs::write(&path, bytes).ok()?;
+        Some(path)
+    }
+
+    /// Kitsu's poster of a MyAnimeList (= Shikimori) id, in its original size.
+    async fn kitsu_poster(&self, id: i64) -> Option<String> {
+        let url = format!(
+            "https://kitsu.io/api/edge/mappings?filter%5BexternalSite%5D=myanimelist/anime&filter%5BexternalId%5D={id}&include=item"
+        );
+        let body = self.download(&url).await.ok()?;
+        let v: serde_json::Value = serde_json::from_slice(&body).ok()?;
+        v["included"]
+            .as_array()?
+            .iter()
+            .find_map(|i| i["attributes"]["posterImage"]["original"].as_str())
+            .map(String::from)
+    }
+
     /// A small picture (a character, a voice actor) kept under `people/`, downloaded once; the
     /// app cannot show remote images, only files it serves itself.
     pub async fn image(&self, url: &str) -> Option<PathBuf> {

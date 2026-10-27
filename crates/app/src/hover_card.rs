@@ -30,6 +30,12 @@ struct HoverCard {
     over_details: bool,
     /// Since when the pointer is over neither the card nor the details.
     away: Option<Instant>,
+    /// Where the details were drawn last.
+    panel: Option<Bounds<Pixels>>,
+    /// Frames the details were offered on, and the last one the card was drawn on: a card not
+    /// drawn any more (a season switched, a list rebuilt) takes its details with it.
+    frame: u64,
+    placed: u64,
 }
 
 struct Shown {
@@ -51,6 +57,8 @@ pub fn hover(key: &ElementId, on: bool, cx: &mut App) {
     let state = cx.default_global::<HoverCard>();
     if on {
         if state.shown.as_ref().is_none_or(|s| &s.key != key) {
+            state.placed = state.frame;
+            state.panel = None;
             state.shown = Some(Shown {
                 key: key.clone(),
                 card: None,
@@ -126,7 +134,11 @@ pub fn place(key: &ElementId, bounds: Bounds<Pixels>, cx: &mut App) {
         .and(cx.default_global::<HoverCard>().shown.as_mut())
     {
         s.bounds = Some(bounds);
+    } else {
+        return;
     }
+    let state = cx.default_global::<HoverCard>();
+    state.placed = state.frame;
 }
 
 /// For cards made of divs: an empty layer over the card that tells the details where it is.
@@ -157,19 +169,29 @@ pub struct Actions {
 
 /// The details of the card the pointer rests on, beside it; Root draws them over everything.
 pub fn overlay(actions: Actions, window: &mut Window, cx: &mut App) -> Option<AnyElement> {
-    let (bounds, since, over_details) = {
+    let (bounds, since, panel) = {
         let state = cx.try_global::<HoverCard>()?;
         let shown = state.shown.as_ref()?;
-        (shown.bounds?, shown.since, state.over_details)
+        (shown.bounds?, shown.since, state.panel)
     };
+    let state = cx.default_global::<HoverCard>();
+    state.frame += 1;
+    if state.placed + 1 < state.frame {
+        state.shown = None;
+        state.over_card = None;
+        state.panel = None;
+        return None;
+    }
     if since.elapsed() < SHOW_AFTER {
         return None;
     }
-    // The card can move or go from under a still pointer (a season switch, a list rebuilt), and
-    // then no "left" comes: what decides is where the pointer is now.
-    let on_card = bounds.contains(&window.mouse_position());
+    // The card can move or go from under a still pointer, and then no "left" comes: where the
+    // pointer is now decides, over the card or over the details as they were last drawn.
+    let at = window.mouse_position();
+    let on_card = bounds.contains(&at);
+    let on_panel = panel.is_some_and(|p| p.contains(&at));
     let state = cx.default_global::<HoverCard>();
-    if on_card || over_details {
+    if on_card || on_panel {
         state.away = None;
     } else {
         match state.away {
@@ -177,6 +199,7 @@ pub fn overlay(actions: Actions, window: &mut Window, cx: &mut App) -> Option<An
                 state.shown = None;
                 state.over_card = None;
                 state.away = None;
+                state.panel = None;
                 return None;
             }
             Some(_) => {}
@@ -334,6 +357,16 @@ fn details(
                 hide_later(cx);
             }
         })
+        .child(
+            gpui::canvas(
+                |b, _, cx| cx.default_global::<HoverCard>().panel = Some(b),
+                |_, _, _, _| {},
+            )
+            .absolute()
+            .top_0()
+            .left_0()
+            .size_full(),
+        )
         .child(
             div()
                 .id("hover-title")
