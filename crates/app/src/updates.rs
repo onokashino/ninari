@@ -127,7 +127,15 @@ pub fn can_install(info: &UpdateInfo) -> bool {
     let beside = std::env::current_exe()
         .ok()
         .and_then(|exe| Some(exe.parent()?.join("mpv-config")));
-    info.package.is_some() && beside.is_some_and(|dir| dir.is_dir())
+    info.package.is_some() && !managed() && beside.is_some_and(|dir| dir.is_dir())
+}
+
+/// Installed by a package manager (the AUR package puts it in /opt): updated by it, not by the
+/// app, which would only leave a second copy in the home folder.
+pub fn managed() -> bool {
+    cfg!(target_os = "linux")
+        && std::env::current_exe()
+            .is_ok_and(|exe| exe.starts_with("/usr") || exe.starts_with("/opt"))
 }
 
 /// Where downloads wait to be installed; cleared on the next start.

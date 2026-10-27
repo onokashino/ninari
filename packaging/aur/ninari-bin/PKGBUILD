@@ -1,0 +1,39 @@
+# Maintainer: onokashino <onokashino@proton.me>
+pkgname=ninari-bin
+pkgver=0.1.8
+pkgrel=1
+pkgdesc="Аниме из всех озвучек в одном окне: каталог Shikimori, источники-плагины, плеер mpv с Anime4K"
+arch=('x86_64')
+url="https://onokashino.github.io/ninari/"
+license=('GPL-3.0-only')
+# The release carries its own mpv and the libraries it needs; these come from the system.
+depends=('glibc' 'gcc-libs' 'fontconfig' 'freetype2' 'libxkbcommon' 'libxkbcommon-x11' 'wayland'
+         'vulkan-icd-loader' 'alsa-lib' 'libpulse' 'hicolor-icon-theme')
+provides=('ninari')
+conflicts=('ninari')
+options=('!strip' '!debug')
+source=("https://github.com/onokashino/ninari/releases/download/v${pkgver}/ninari-${pkgver}-linux-x86_64.tar.gz")
+sha256sums=('3c36f2fedf9cb3bc6ec4b47f709c95cbf5ebff759ea2cde692a26fd2d2876293')
+
+package() {
+  cd "ninari-${pkgver}-linux-x86_64"
+  install -d "$pkgdir/opt/ninari"
+  cp -r ninari mpv lib mpv-config "$pkgdir/opt/ninari/"
+  install -d "$pkgdir/usr/bin"
+  ln -s /opt/ninari/ninari "$pkgdir/usr/bin/ninari"
+  for s in 32 128 256 512; do
+    install -Dm644 "icons/$s.png" "$pkgdir/usr/share/icons/hicolor/${s}x${s}/apps/ninari.png"
+  done
+  install -Dm644 /dev/stdin "$pkgdir/usr/share/applications/ninari.desktop" <<DESKTOP
+[Desktop Entry]
+Type=Application
+Name=ninari
+Comment=Аниме: каталог, библиотека и плеер
+Exec=/opt/ninari/ninari %u
+Icon=ninari
+Terminal=false
+Categories=AudioVideo;Video;Player;
+MimeType=x-scheme-handler/ninari;
+StartupWMClass=ninari
+DESKTOP
+}

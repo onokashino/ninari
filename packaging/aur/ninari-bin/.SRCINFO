@@ -1,0 +1,26 @@
+pkgbase = ninari-bin
+	pkgdesc = Аниме из всех озвучек в одном окне: каталог Shikimori, источники-плагины, плеер mpv с Anime4K
+	pkgver = 0.1.8
+	pkgrel = 1
+	url = https://onokashino.github.io/ninari/
+	arch = x86_64
+	license = GPL-3.0-only
+	depends = glibc
+	depends = gcc-libs
+	depends = fontconfig
+	depends = freetype2
+	depends = libxkbcommon
+	depends = libxkbcommon-x11
+	depends = wayland
+	depends = vulkan-icd-loader
+	depends = alsa-lib
+	depends = libpulse
+	depends = hicolor-icon-theme
+	provides = ninari
+	conflicts = ninari
+	options = !strip
+	options = !debug
+	source = https://github.com/onokashino/ninari/releases/download/v0.1.8/ninari-0.1.8-linux-x86_64.tar.gz
+	sha256sums = 3c36f2fedf9cb3bc6ec4b47f709c95cbf5ebff759ea2cde692a26fd2d2876293
+
+pkgname = ninari-bin

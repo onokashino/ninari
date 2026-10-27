@@ -239,6 +239,9 @@ impl SettingsPage {
                         format!("Скачиваем {}%", (share * 100.).round())
                     }
                     Progress::Installing => "Устанавливаем".into(),
+                    _ if updates::managed() => {
+                        format!("{} придёт через пакетный менеджер", info.version)
+                    }
                     _ if updates::can_install(info) => format!("Обновить до {}", info.version),
                     _ => format!("Скачать {}", info.version),
                 };

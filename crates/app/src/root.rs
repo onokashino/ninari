@@ -523,6 +523,10 @@ impl Root {
 
     /// A newer version, offered in the corner of the window.
     pub fn offer_update(&mut self, info: UpdateInfo, cx: &mut Context<Self>) {
+        // A package manager brings it; the settings still say a version is out.
+        if updates::managed() {
+            return;
+        }
         self.update = Some(info);
         cx.notify();
     }
