@@ -956,6 +956,13 @@ impl Render for Root {
                     changed: Rc::new(move |_, cx| {
                         changed.update(cx, |root, cx| root.library_changed(cx)).ok();
                     }),
+                    browse: {
+                        let root = cx.entity().downgrade();
+                        Rc::new(move |seed, window, cx| {
+                            root.update(cx, |root, cx| root.browse(seed, window, cx))
+                                .ok();
+                        })
+                    },
                 },
                 window,
                 cx,
@@ -1046,6 +1053,7 @@ impl Render for Root {
             .children(self.offer.clone())
             .children(self.update.clone().map(|info| update_banner(info, cx)))
             .children(self.onboarding.clone())
+            .children(crate::copy::note(cx))
             .children(self.frames.end());
         image_cache(self.images.clone()).size_full().child(root)
     }

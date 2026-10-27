@@ -1434,14 +1434,19 @@ impl Render for Title {
         let mut info: Vec<AnyElement> = Vec::new();
         match &card {
             Some(c) => {
+                let name = title(&c.anime);
+                let copied = name.clone();
                 info.push(
                     div()
+                        .id("title-name")
+                        .cursor_pointer()
+                        .on_click(move |_, _, cx| crate::copy::copy(copied.clone(), cx))
                         .text_size(px(36.))
                         .line_height(px(42.))
                         .line_clamp(2)
                         .text_ellipsis()
                         .font_weight(FontWeight::EXTRA_BOLD)
-                        .child(title(&c.anime))
+                        .child(name)
                         .into_any_element(),
                 );
                 let japanese = match &self.cur().details {
@@ -1456,11 +1461,24 @@ impl Render for Title {
                             .flex_wrap()
                             .text_color(rgb(theme::TEXT_2))
                             .font_weight(FontWeight::SEMIBOLD)
-                            .child(c.anime.name.clone())
-                            .children(japanese.map(|j| {
+                            .child({
+                                let name = c.anime.name.clone();
                                 div()
+                                    .id("title-original")
+                                    .cursor_pointer()
+                                    .hover(|s| s.text_color(rgb(theme::TEXT)))
+                                    .on_click(move |_, _, cx| crate::copy::copy(name.clone(), cx))
+                                    .child(c.anime.name.clone())
+                            })
+                            .children(japanese.map(|j| {
+                                let copied = j.clone();
+                                div()
+                                    .id("title-japanese")
+                                    .cursor_pointer()
                                     .text_color(rgb(theme::TEXT_3))
+                                    .hover(|s| s.text_color(rgb(theme::TEXT_2)))
                                     .font_weight(FontWeight::MEDIUM)
+                                    .on_click(move |_, _, cx| crate::copy::copy(copied.clone(), cx))
                                     .child(format!("  ·  {j}"))
                             }))
                             .into_any_element(),

@@ -82,6 +82,9 @@ const ORDERS: &Options = &[
 pub enum Seed {
     Genre(String),
     Studio(i64, String),
+    /// A kind: "tv", "movie" and so on.
+    Kind(String),
+    Year(i64),
 }
 
 pub struct CatalogPage {
@@ -195,6 +198,20 @@ impl CatalogPage {
                 );
                 self.studio_name = Some(name);
             }
+            Seed::Kind(kind) => self.set(
+                BrowseFilter {
+                    kinds: vec![kind],
+                    ..Default::default()
+                },
+                cx,
+            ),
+            Seed::Year(year) => self.set(
+                BrowseFilter {
+                    season: Some(year.to_string()),
+                    ..Default::default()
+                },
+                cx,
+            ),
             Seed::Genre(name) => {
                 if matches!(self.genres, Load::Pending) {
                     self.wanted_genre = Some(name);

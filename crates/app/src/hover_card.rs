@@ -11,6 +11,7 @@ use gpui::{
 };
 use ninari_core::feeds::AnimeCard;
 
+use crate::catalog_page::Seed;
 use crate::core::Core;
 use crate::data::title;
 use crate::format::{kind_label, library_status};
@@ -165,6 +166,55 @@ pub fn anchor(key: &ElementId, cx: &App) -> Option<AnyElement> {
 pub struct Actions {
     pub open: Rc<dyn Fn(i64, &mut Window, &mut App)>,
     pub changed: Rc<dyn Fn(&mut Window, &mut App)>,
+    /// The catalog by a genre, a studio, a kind or a year.
+    pub browse: Rc<dyn Fn(Seed, &mut Window, &mut App)>,
+}
+
+/// A label and its values, each a link into the catalog when it has a seed.
+fn links(
+    label: &'static str,
+    sep: &'static str,
+    values: Vec<(String, Option<Seed>)>,
+    accent: gpui::Hsla,
+    browse: &Rc<dyn Fn(Seed, &mut Window, &mut App)>,
+) -> gpui::Div {
+    let count = values.len();
+    div()
+        .flex()
+        .gap(px(8.))
+        .child(
+            div()
+                .flex_none()
+                .text_color(rgb(theme::TEXT_3))
+                .child(label),
+        )
+        .child(
+            div()
+                .flex_1()
+                .min_w(px(0.))
+                .flex()
+                .flex_wrap()
+                .text_color(rgb(theme::TEXT))
+                .children(values.into_iter().enumerate().map(|(i, (text, seed))| {
+                    let sep = if i + 1 < count { sep } else { "" };
+                    match seed {
+                        Some(seed) => {
+                            let browse = browse.clone();
+                            div()
+                                .id(gpui::ElementId::Name(format!("hover-{label}-{i}").into()))
+                                .cursor_pointer()
+                                .hover(move |s| s.text_color(accent))
+                                .on_click(move |_, window, cx| {
+                                    cx.default_global::<HoverCard>().shown = None;
+                                    browse(seed.clone(), window, cx);
+                                })
+                                .child(format!("{text}{sep}"))
+                                .into_any_element()
+                        }
+                        None => div().child(format!("{text}{sep}")).into_any_element(),
+                    }
+                })),
+        )
 }
 
 /// The details of the card the pointer rests on, beside it; Root draws them over everything.
@@ -285,20 +335,21 @@ fn details(
                     .child(value),
             )
     };
-    let kind = [
-        Some(kind_label(a.kind.as_deref())).filter(|k| !k.is_empty()),
-        a.year.map(|y| y.to_string()),
-        match a.status.as_deref() {
-            Some("ongoing") => Some("онгоинг".to_string()),
-            Some("anons") => Some("анонс".to_string()),
-            Some("released") => Some("вышел".to_string()),
-            _ => None,
-        },
-    ]
-    .into_iter()
-    .flatten()
-    .collect::<Vec<_>>()
-    .join(" · ");
+    let mut kind: Vec<(String, Option<Seed>)> = Vec::new();
+    if let Some(k) = a.kind.clone().filter(|k| !kind_label(Some(k)).is_empty()) {
+        kind.push((kind_label(Some(&k)).to_string(), Some(Seed::Kind(k))));
+    }
+    if let Some(y) = a.year {
+        kind.push((y.to_string(), Some(Seed::Year(y))));
+    }
+    if let Some(st) = match a.status.as_deref() {
+        Some("ongoing") => Some("онгоинг"),
+        Some("anons") => Some("анонс"),
+        Some("released") => Some("вышел"),
+        _ => None,
+    } {
+        kind.push((st.to_string(), None));
+    }
     let open = actions.open.clone();
     let statuses = STATUSES.map(|st| {
         let on = status.as_deref() == Some(st);
@@ -385,14 +436,27 @@ fn details(
             Some(a.name.clone())
                 .filter(|n| Some(n) != a.russian.as_ref())
                 .map(|n| {
+                    let copied = n.clone();
                     div()
+                        .id("hover-original")
+                        .cursor_pointer()
                         .text_size(px(12.))
                         .text_color(rgb(theme::TEXT_3))
+                        .hover(|s| s.text_color(rgb(theme::TEXT_2)))
+                        .on_click(move |_, _, cx| crate::copy::copy(copied.clone(), cx))
                         .child(n)
                 }),
         )
         .children(a.description.clone().map(|text| {
+            let open = actions.open.clone();
             div()
+                .id("hover-description")
+                .cursor_pointer()
+                .hover(|s| s.text_color(rgb(theme::TEXT)))
+                .on_click(move |_, window, cx| {
+                    cx.default_global::<HoverCard>().shown = None;
+                    open(id, window, cx);
+                })
                 .line_height(px(18.))
                 .line_clamp(4)
                 .text_ellipsis()
@@ -404,15 +468,34 @@ fn details(
                 .flex_col()
                 .gap(px(4.))
                 .mt(px(4.))
-                .when(!kind.is_empty(), |d| d.child(fact("Тип", kind)))
+                .when(!kind.is_empty(), |d| {
+                    d.child(links("Тип", " · ", kind, accent, &actions.browse))
+                })
                 .when(episodes > 0, |d| {
                     d.child(fact("Эпизоды", episodes.to_string()))
                 })
                 .when(!a.studios.is_empty(), |d| {
-                    d.child(fact("Студия", a.studios.join(", ")))
+                    let studios = a
+                        .studios
+                        .iter()
+                        .enumerate()
+                        .map(|(i, name)| {
+                            let seed = a
+                                .studio_ids
+                                .get(i)
+                                .map(|id| Seed::Studio(*id, name.clone()));
+                            (name.clone(), seed)
+                        })
+                        .collect();
+                    d.child(links("Студия", ", ", studios, accent, &actions.browse))
                 })
                 .when(!a.genres.is_empty(), |d| {
-                    d.child(fact("Жанры", a.genres.join(", ")))
+                    let genres = a
+                        .genres
+                        .iter()
+                        .map(|g| (g.clone(), Some(Seed::Genre(g.clone()))))
+                        .collect();
+                    d.child(links("Жанры", ", ", genres, accent, &actions.browse))
                 }),
         )
         .child(

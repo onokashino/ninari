@@ -9,6 +9,7 @@ pub mod cards;
 pub mod catalog;
 pub mod catalog_page;
 pub mod clock;
+pub mod copy;
 pub mod core;
 pub mod data;
 pub mod episode_grid;

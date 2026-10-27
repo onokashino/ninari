@@ -225,7 +225,11 @@ pub fn about(
             .border_color(theme::line())
             .text_size(px(13.))
             .children(description.map(|d| {
+                let copied = d.clone();
                 div()
+                    .id("about-description")
+                    .cursor_pointer()
+                    .on_click(move |_, _, cx| crate::copy::copy(copied.clone(), cx))
                     .mb(px(6.))
                     .text_size(px(14.))
                     .line_height(px(22.))
