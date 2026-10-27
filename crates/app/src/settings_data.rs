@@ -69,6 +69,8 @@ pub struct DataPane {
     core: Arc<Core>,
     sizes: [u64; 2],
     busy: bool,
+    /// A clearing asked for once: the second press does it.
+    armed: Option<&'static str>,
     note: Option<String>,
     error: Option<String>,
 }
@@ -81,6 +83,7 @@ impl DataPane {
             core,
             sizes: [0; 2],
             busy: false,
+            armed: None,
             note: None,
             error: None,
         };
@@ -131,6 +134,33 @@ impl DataPane {
             let freed = clear_dir(&cache_dir().join(kind))
                 .map_err(|e| AppError::new("Io", e.to_string()))?;
             Ok(Some(format!("Освобождено {}.", size_label(freed))))
+        });
+        self.run(job, cx);
+    }
+
+    /// "list" takes every title off the list, "history" forgets all watching; the first press
+    /// only asks.
+    fn wipe(&mut self, what: &'static str, cx: &mut Context<Self>) {
+        if self.armed != Some(what) {
+            self.armed = Some(what);
+            cx.notify();
+            return;
+        }
+        self.armed = None;
+        let job = self.core.run(move |c| async move {
+            Ok(Some(if what == "list" {
+                let n = c.library.clear_list()? as i64;
+                format!(
+                    "Из библиотеки убрано {n} {}.",
+                    plural(n, "тайтл", "тайтла", "тайтлов")
+                )
+            } else {
+                let n = c.library.clear_history()? as i64;
+                format!(
+                    "История очищена: забыто {n} {}.",
+                    plural(n, "серия", "серии", "серий")
+                )
+            }))
         });
         self.run(job, cx);
     }
@@ -249,6 +279,33 @@ impl Render for DataPane {
                         .when(self.busy, |b| b.opacity(0.5))
                         .on_click(cx.listener(|pane, _, _, cx| pane.restore(cx))),
                 ),
+        )
+        .child(setting_text(
+            "Очистка",
+            "Если импорт принёс лишнее. Убирается только здесь: списки на Shikimori и MyAnimeList не трогаются. Перед этим можно сохранить копию.",
+        ))
+        .child(
+            div()
+                .flex()
+                .flex_wrap()
+                .gap(px(12.))
+                .children([
+                    ("list", "Очистить библиотеку"),
+                    ("history", "Очистить историю просмотра"),
+                ]
+                .map(|(what, label)| {
+                    let armed = self.armed == Some(what);
+                    button(
+                        gpui::ElementId::Name(format!("wipe-{what}").into()),
+                        if armed { "Точно очистить?" } else { label },
+                        None,
+                        if armed { Variant::Primary } else { Variant::Glass },
+                        Size::M,
+                        accent,
+                    )
+                    .when(self.busy, |b| b.opacity(0.5))
+                    .on_click(cx.listener(move |pane, _, _, cx| pane.wipe(what, cx)))
+                })),
         )
         .children(self.note.clone().map(muted))
         .children(self.error.clone().map(|e| {

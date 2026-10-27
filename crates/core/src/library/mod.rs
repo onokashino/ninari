@@ -338,6 +338,27 @@ impl Library {
         Ok(rows)
     }
 
+    /// Takes every title off the list (as removing one does: the chosen dub and score stay);
+    /// how many. Nothing is sent to Shikimori or MyAnimeList.
+    pub fn clear_list(&self) -> Result<usize, AppError> {
+        let now = now_ts();
+        let n = self.db.lock().unwrap().execute(
+            "UPDATE library SET status = ?1, updated_at = ?2 WHERE status != ?1",
+            params![HIDDEN, now],
+        )?;
+        Ok(n)
+    }
+
+    /// Forgets all watching: every episode's progress and mark; how many episodes.
+    pub fn clear_history(&self) -> Result<usize, AppError> {
+        let n = self
+            .db
+            .lock()
+            .unwrap()
+            .execute("DELETE FROM episode_progress", [])?;
+        Ok(n)
+    }
+
     /// Forgets one episode's progress and returns it, so it can be put back with `apply`.
     // A forgotten row is not sent to paired devices; they keep theirs until they forget it too.
     pub fn forget_episode(
@@ -556,6 +577,19 @@ mod tests {
 
     fn lib() -> Library {
         Library::new(Arc::new(Mutex::new(db::open_in_memory().unwrap())))
+    }
+
+    #[test]
+    fn clearing_takes_everything_off_the_list_and_forgets_watching() {
+        let l = lib();
+        assert!(l.import_rate(1, "completed", 3, 10).unwrap());
+        assert!(l.import_rate(2, "planned", 0, 10).unwrap());
+        assert_eq!(l.clear_history().unwrap(), 3);
+        assert!(l.progress(1).unwrap().is_empty());
+        assert_eq!(l.clear_list().unwrap(), 2);
+        assert!(l.list(None).unwrap().is_empty());
+        // Once cleared, an import brings the titles back.
+        assert!(l.import_rate(1, "completed", 3, 10).unwrap());
     }
 
     fn entry_at(id: i64, status: &str, at: i64) -> LibraryEntry {
