@@ -5,7 +5,9 @@ section: dev
 ---
 # Выпуск версии
 
-1. Подними `version` в `crates/app/Cargo.toml` и закоммить.
+Номер версии живёт в одном месте: `version` в `crates/app/Cargo.toml`. Команды установки на сайте и в README ведут на последний релиз и версии не содержат.
+
+1. Подними `version` в `crates/app/Cargo.toml` и закоммить вместе с `Cargo.lock`.
 2. Поставь тег с заметкой, которую увидят пользователи, и отправь его:
 
 ```bash
@@ -31,3 +33,5 @@ Workflow `.github/workflows/release.yml` соберёт архив для Linux 
 Каждый push в master, который трогает приложение, тоже собирает обе системы. Пакеты лежат в артефактах запуска, релиз при этом не создаётся.
 
 Тег должен совпадать с версией в `Cargo.toml`, иначе сборка остановится. Ключи Shikimori берутся из секретов репозитория `SHIKIMORI_CLIENT_ID` и `SHIKIMORI_CLIENT_SECRET`.
+
+После выхода релиза пакет AUR обновляется скриптом `packaging/aur/update.sh` (см. `packaging/aur/README.md`).

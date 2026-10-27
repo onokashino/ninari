@@ -34,7 +34,7 @@
 Linux (Arch, openSUSE Tumbleweed и другие системы со свежими библиотеками), mpv и всё нужное уже внутри:
 
 ```bash
-curl -L https://github.com/onokashino/ninari/releases/download/v0.1.9/ninari-0.1.9-linux-x86_64.tar.gz | tar xz && ./ninari-*/install.sh
+curl -fsSL https://onokashino.github.io/ninari/install.sh | bash
 ```
 
 Для Windows 10 и 11 на [странице релиза](https://github.com/onokashino/ninari/releases/latest) есть установщик и portable-zip. Flatpak для любого дистрибутива и AUR скоро, macOS в работе. Подробнее: [установка](https://onokashino.github.io/ninari/docs/install/).

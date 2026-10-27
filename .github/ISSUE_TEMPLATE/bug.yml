@@ -23,7 +23,7 @@ body:
     id: version
     attributes:
       label: Версия
-      placeholder: 0.1.9
+      description: Настройки → Приложение
     validations:
       required: true
   - type: input

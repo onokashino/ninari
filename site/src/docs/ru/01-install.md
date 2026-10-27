@@ -21,10 +21,10 @@ ninari выходит для Linux и Windows 10 и 11. Версия для macO
 Архив собран на Arch и требует свежих системных библиотек (glibc 2.44 или новее): подойдут Arch, openSUSE Tumbleweed и похожие дистрибутивы.
 
 ```bash
-curl -L https://github.com/onokashino/ninari/releases/download/v0.1.9/ninari-0.1.9-linux-x86_64.tar.gz | tar xz && ./ninari-*/install.sh
+curl -fsSL https://onokashino.github.io/ninari/install.sh | bash
 ```
 
-Команда скачивает последний релиз, распаковывает его в текущую папку и запускает установщик. Актуальная команда всегда есть на странице [Скачать](../download.html).
+Команда берёт последний релиз, сверяет его контрольную сумму и запускает установщик из него. Она же обновляет до последней версии. Актуальная команда всегда есть на странице [Скачать](../download.html).
 
 ## Linux вручную
 
@@ -57,7 +57,9 @@ curl -L https://github.com/onokashino/ninari/releases/download/v0.1.9/ninari-0.1
 На Windows: «Параметры → Приложения» или пункт удаления в меню «Пуск». На Linux:
 
 ```bash
-./install.sh --remove
+curl -fsSL https://onokashino.github.io/ninari/install.sh | bash -s -- --remove
 ```
+
+Если ставил вручную, то же делает `./install.sh --remove` из распакованного архива.
 
 Удаляются программа, команда, пункт меню и иконки. Библиотеку и настройки в `~/.local/share/com.onokashino.ninari` это не трогает: удали папку сам, если она больше не нужна.

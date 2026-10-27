@@ -10,7 +10,7 @@
           <a class="button ghost" href="https://github.com/onokashino/ninari/releases">{{github}} Все версии</a>
         </div>
         <div class="install">
-          <code data-install-cmd>curl -L https://github.com/onokashino/ninari/releases/latest/download/ninari-0.1.9-linux-x86_64.tar.gz | tar xz &amp;&amp; ./ninari-*/install.sh</code>
+          <code data-install-cmd>curl -fsSL https://onokashino.github.io/ninari/install.sh | bash</code>
           <button type="button" class="copy" data-copy-from="[data-install-cmd]">Копировать</button>
         </div>
         <p class="fine" data-release-meta>Linux · бесплатно · открытый код</p>
@@ -20,7 +20,7 @@
         <ul class="platform-grid" data-reveal>
           <li class="platform ready"><b>Linux</b><span>Архив для Arch, openSUSE Tumbleweed и других дистрибутивов со свежими библиотеками</span><i>Есть</i></li>
           <li class="platform"><b>Flatpak</b><span>Для любого дистрибутива, через Flathub</span><i>Скоро</i></li>
-          <li class="platform"><b>AUR</b><span>Пакет для Arch, обновляется вместе с системой</span><i>Скоро</i></li>
+          <li class="platform"><b>AUR</b><span>Пакет ninari-bin для Arch, обновляется вместе с системой</span><i>Скоро</i></li>
           <li class="platform ready"><b>Windows</b><span>Установщик и portable-версия, Windows 10 и 11. Видео прямо в окне приложения</span><i>Есть</i></li>
           <li class="platform"><b>macOS</b><span>Apple Silicon и Intel</span><i>В работе</i></li>
         </ul>
@@ -33,7 +33,7 @@
           <li><h3>Запусти install.sh</h3><p>Распакуй и запусти <code>./install.sh</code>. Пароль не нужен.</p></li>
           <li><h3>Открой из меню</h3><p>ninari появится в меню приложений, а в терминале станет командой <code>ninari</code>.</p></li>
         </ol>
-        <p class="center fine">Обновления приложение ставит само, кнопкой «Обновить». Удаление: <code>./install.sh --remove</code>, библиотека останется.</p>
+        <p class="center fine">Обновления приложение ставит само, кнопкой «Обновить». Удаление: <code>curl -fsSL https://onokashino.github.io/ninari/install.sh | bash -s -- --remove</code>, библиотека останется.</p>
       </section>
 
       <section class="reqs" aria-labelledby="reqs-h">

@@ -387,7 +387,7 @@ function write(lang: Lang, path: string, html: string) {
 
 rmSync(DIST, { recursive: true, force: true });
 mkdirSync(DIST, { recursive: true });
-for (const item of ["style.css", "app.js", "assets"]) cpSync(join(SITE, item), join(DIST, item), { recursive: true });
+for (const item of ["style.css", "app.js", "assets", "install.sh"]) cpSync(join(SITE, item), join(DIST, item), { recursive: true });
 
 let pages = 0;
 for (const lang of LANGS) {

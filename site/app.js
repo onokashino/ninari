@@ -298,8 +298,6 @@ async function loadRelease() {
       link.href = onWindows ? windows.browser_download_url : linux.browser_download_url;
       if (onWindows && !link.hasAttribute("data-keep-label")) link.textContent = "Скачать для Windows";
     }
-    const cmd = document.querySelector("[data-install-cmd]");
-    if (cmd) cmd.textContent = `curl -L ${linux.browser_download_url} | tar xz && ./ninari-*/install.sh`;
     const meta = document.querySelector("[data-release-meta]");
     if (meta) meta.textContent = `Версия ${version} · Linux и Windows · бесплатно, открытый код`;
     const date = rel.published_at

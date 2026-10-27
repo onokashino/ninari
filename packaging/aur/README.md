@@ -11,5 +11,5 @@ cp packaging/aur/ninari-bin/{PKGBUILD,.SRCINFO} aur-ninari-bin/
 cd aur-ninari-bin && git add -A && git commit -m "ninari 0.1.8" && git push
 ```
 
-На каждую версию: поменять `pkgver` и `sha256sums` (сумма есть в `latest.json` релиза), затем
-`makepkg --printsrcinfo > .SRCINFO` и тот же push.
+На каждую версию: `packaging/aur/update.sh` берёт версию и сумму из `latest.json` последнего
+релиза, затем тот же push.
