@@ -180,6 +180,16 @@ impl Core {
                 }
             });
         }
+        {
+            // Posters kept from before they were shrunk on download: shrunk once, quietly.
+            let posters = posters.clone();
+            rt.spawn_blocking(move || {
+                let n = posters.shrink_cached();
+                if n > 0 {
+                    tracing::info!("posters: {n} shrunk");
+                }
+            });
+        }
         let (player_host, player_rx) = GpuiHost::new(account.clone());
         let player = Player::new(
             player_host.clone(),

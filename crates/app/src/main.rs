@@ -190,6 +190,7 @@ fn main() -> anyhow::Result<()> {
 }
 
 fn run() -> anyhow::Result<()> {
+    ninari_app::frames::STARTED.get_or_init(std::time::Instant::now);
     #[cfg(all(debug_assertions, target_os = "linux"))]
     leave_idle_priority();
     start_log();

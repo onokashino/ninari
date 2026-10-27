@@ -14,6 +14,7 @@ crates/app/binaries/
 
 # Cargo output, releases packed by scripts/package.sh, shot's default picture
 /target
+/crates/*/target
 /dist
 /shot.png
 /site/dist

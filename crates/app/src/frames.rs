@@ -1,10 +1,19 @@
-//! NINARI_FRAMES=1: how the window keeps up, written to the log every two seconds while it draws:
+//! How long the first frame took from the start of the process, always; and with NINARI_FRAMES=1
+//! how the window keeps up, written to the log every two seconds while it draws:
 //! how long a frame takes to build (Root's render to the end of paint) and the gaps between
 //! frames. A gap well over the usual one is a frame the screen did not get in time.
 
-use std::cell::RefCell;
+use std::cell::{Cell, RefCell};
 use std::rc::Rc;
+use std::sync::OnceLock;
 use std::time::Instant;
+
+/// When the process started, set first thing in main.
+pub static STARTED: OnceLock<Instant> = OnceLock::new();
+
+thread_local! {
+    static FIRST: Cell<bool> = const { Cell::new(true) };
+}
 
 use gpui::{IntoElement, Styled, canvas};
 
@@ -31,6 +40,11 @@ impl Frames {
 
     /// At the start of Root's render.
     pub fn begin(&self) {
+        if FIRST.with(|f| f.replace(false))
+            && let Some(start) = STARTED.get()
+        {
+            tracing::info!("first frame {} ms after start", start.elapsed().as_millis());
+        }
         let Some(inner) = &self.0 else { return };
         let mut s = inner.borrow_mut();
         let now = Instant::now();
@@ -73,8 +87,13 @@ impl Frames {
 }
 
 fn report(mut built: Vec<f32>, mut gaps: Vec<f32>) -> Option<String> {
-    if built.len() < 10 || gaps.is_empty() {
+    if built.is_empty() {
         return None;
+    }
+    if built.len() < 10 || gaps.is_empty() {
+        // Few frames in two seconds: the window was meant to be still. Anything here redraws
+        // while nothing moves.
+        return Some(format!("{} while still", built.len()));
     }
     let pct = |v: &[f32], p: f32| v[((v.len() - 1) as f32 * p) as usize];
     built.sort_by(f32::total_cmp);
@@ -104,6 +123,10 @@ mod tests {
         let line = report(built, gaps).unwrap();
         assert!(line.starts_with("20 built in avg 2.0 ms"), "{line}");
         assert!(line.ends_with("late 2"), "{line}");
-        assert_eq!(report(vec![1.; 3], vec![7.]), None);
+        assert_eq!(
+            report(vec![1.; 3], vec![7.]).as_deref(),
+            Some("3 while still")
+        );
+        assert_eq!(report(vec![], vec![]), None);
     }
 }

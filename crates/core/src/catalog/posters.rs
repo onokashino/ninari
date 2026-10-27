@@ -12,6 +12,33 @@ use crate::db::Db;
 use crate::error::AppError;
 use crate::net::HttpClient;
 
+/// Wider than this a poster is only ever drawn smaller: a card is up to ~220 points wide, twice
+/// that on a HiDPI screen. Some covers come 1900 wide, 20 MB decoded, and their upload to the GPU
+/// was a visible hitch while scrolling.
+pub const POSTER_MAX_W: u32 = 440;
+
+/// `bytes` of a picture made at most `max` wide, in its own format; `None` when it already is or
+/// cannot be read.
+pub fn shrink(bytes: &[u8], max: u32) -> Option<Vec<u8>> {
+    let format = image::guess_format(bytes).ok()?;
+    let img = image::load_from_memory_with_format(bytes, format).ok()?;
+    if img.width() <= max {
+        return None;
+    }
+    let height = (u64::from(img.height()) * u64::from(max) / u64::from(img.width())).max(1) as u32;
+    let small = img.resize_exact(max, height, image::imageops::FilterType::CatmullRom);
+    let mut out = std::io::Cursor::new(Vec::new());
+    match format {
+        image::ImageFormat::Jpeg => {
+            image::codecs::jpeg::JpegEncoder::new_with_quality(&mut out, 90)
+                .encode_image(&small.to_rgb8())
+                .ok()?;
+        }
+        _ => small.write_to(&mut out, format).ok()?,
+    }
+    Some(out.into_inner())
+}
+
 pub const DEFAULT_ACCENT: &str = "#b9a3ff";
 pub const DEFAULT_GLOW: &str = "#3a2f6b";
 
@@ -197,6 +224,39 @@ impl Posters {
         Some(path)
     }
 
+    /// Posters saved before they were shrunk on download, made `POSTER_MAX_W` wide in place; how
+    /// many. Slow (a decode each): run it in the background.
+    pub fn shrink_cached(&self) -> usize {
+        let Ok(entries) = std::fs::read_dir(&self.dir) else {
+            return 0;
+        };
+        let mut done = 0;
+        for path in entries.filter_map(|e| e.ok()).map(|e| e.path()) {
+            let banner = path
+                .file_stem()
+                .is_some_and(|s| s.to_string_lossy().ends_with("-banner"));
+            let wide = image::ImageReader::open(&path)
+                .and_then(|r| r.with_guessed_format())
+                .ok()
+                .and_then(|r| r.into_dimensions().ok())
+                .is_some_and(|(w, _)| w > POSTER_MAX_W);
+            if !path.is_file() || banner || !wide {
+                continue;
+            }
+            if let Some(small) = std::fs::read(&path)
+                .ok()
+                .and_then(|b| shrink(&b, POSTER_MAX_W))
+            {
+                // A new file put in place: a reader never sees half of one.
+                let tmp = path.with_extension("shrinking");
+                if std::fs::write(&tmp, small).is_ok() && std::fs::rename(&tmp, &path).is_ok() {
+                    done += 1;
+                }
+            }
+        }
+        done
+    }
+
     /// The wide AniList banner of a title, downloaded on first use; `None` when it has none.
     pub async fn banner(&self, anime: &Anime) -> Result<Option<PathBuf>, AppError> {
         let known: Option<String> = self
@@ -257,6 +317,7 @@ impl Posters {
             return Ok(None);
         };
         let bytes = self.download(&url).await?;
+        let bytes = shrink(&bytes, POSTER_MAX_W).unwrap_or(bytes);
         let path = self.save(&anime.id.to_string(), &url, &bytes)?;
         let palette = image::load_from_memory(&bytes)
             .map(|img| pick_palette(&img))
@@ -388,6 +449,28 @@ mod tests {
         assert!(first.starts_with(dir.path()));
         assert_eq!(std::fs::read(&first).unwrap(), png([10, 20, 30]));
         assert_eq!(hits.load(Ordering::SeqCst), 1);
+    }
+
+    #[test]
+    fn wide_posters_shrink_and_narrow_ones_stay() {
+        let encode = |w: u32, h: u32, format| {
+            let mut out = std::io::Cursor::new(Vec::new());
+            DynamicImage::ImageRgb8(RgbImage::new(w, h))
+                .write_to(&mut out, format)
+                .unwrap();
+            out.into_inner()
+        };
+        let wide = encode(1900, 2700, image::ImageFormat::Jpeg);
+        let small = shrink(&wide, POSTER_MAX_W).unwrap();
+        let img = image::load_from_memory(&small).unwrap();
+        assert_eq!((img.width(), img.height()), (440, 625));
+        assert_eq!(
+            image::guess_format(&small).unwrap(),
+            image::ImageFormat::Jpeg
+        );
+        let png = shrink(&encode(900, 900, image::ImageFormat::Png), POSTER_MAX_W).unwrap();
+        assert_eq!(image::guess_format(&png).unwrap(), image::ImageFormat::Png);
+        assert!(shrink(&encode(400, 600, image::ImageFormat::Png), POSTER_MAX_W).is_none());
     }
 
     #[test]
