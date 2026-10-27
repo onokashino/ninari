@@ -512,15 +512,11 @@ fn details(
                 .items_baseline()
                 .justify_end()
                 .gap(px(6.))
+                // The star of the cards' score chips.
+                .child(div().text_size(px(18.)).text_color(rgb(0xf5c451)).child("★"))
                 .child(
                     div()
-                        .text_size(px(12.))
-                        .text_color(rgb(theme::TEXT_3))
-                        .child("оценка"),
-                )
-                .child(
-                    div()
-                        .text_size(px(22.))
+                        .text_size(px(20.))
                         .font_weight(FontWeight::EXTRA_BOLD)
                         .text_color(rgb(theme::TEXT))
                         .child(format!("{score:.2}").replace('.', ",")),
