@@ -548,6 +548,11 @@ impl Player {
 
     /// One click pauses, a double click goes fullscreen; a click with a panel open closes it.
     fn on_surface_click(&mut self, e: &ClickEvent, window: &mut Window, cx: &mut Context<Self>) {
+        // GPUI clicks the focused element when space is let go: the key already paused, and a
+        // second toggle here undid it at once.
+        if e.is_keyboard() {
+            return;
+        }
         if self.panel.is_some() {
             self.set_panel(None, cx);
             return;
@@ -669,7 +674,7 @@ fn slide_in(el: impl IntoElement, id: impl Into<gpui::ElementId>) -> impl IntoEl
 fn follow_drag(
     dragging: impl Fn() -> bool + 'static,
     on_move: impl Fn(Pixels, &mut Window, &mut gpui::App) + 'static,
-    on_up: impl Fn(Pixels, &mut Window, &mut gpui::App) + 'static,
+    on_up: impl Fn(Option<Pixels>, &mut Window, &mut gpui::App) + 'static,
 ) -> impl IntoElement {
     canvas(
         |_, _, _| (),
@@ -678,15 +683,23 @@ fn follow_drag(
                 return;
             }
             let on_move = Rc::new(on_move);
-            window.on_mouse_event(move |e: &MouseMoveEvent, _, window, cx| {
-                if e.pressed_button == Some(MouseButton::Left) {
-                    on_move(e.position.x, window, cx);
-                }
-            });
             let on_up = Rc::new(on_up);
+            {
+                let on_up = on_up.clone();
+                window.on_mouse_event(move |e: &MouseMoveEvent, _, window, cx| {
+                    if e.pressed_button == Some(MouseButton::Left) {
+                        on_move(e.position.x, window, cx);
+                    } else {
+                        // The button was let go where no release reached the window (outside
+                        // it): the drag ends here, without seeking. Left armed, the next click
+                        // anywhere, a pause on the picture, jumped to where the pointer was.
+                        on_up(None, window, cx);
+                    }
+                });
+            }
             window.on_mouse_event(move |e: &MouseUpEvent, phase, window, cx| {
                 if phase.capture() && e.button == MouseButton::Left {
-                    on_up(e.position.x, window, cx);
+                    on_up(Some(e.position.x), window, cx);
                 }
             });
         },
@@ -885,7 +898,9 @@ impl Player {
                     window.refresh();
                 },
                 move |x, window, cx| {
-                    if up_drag.take().is_some() {
+                    if up_drag.take().is_some()
+                        && let Some(x) = x
+                    {
                         let t = up_at(x);
                         seek_to.set(Some((t, Instant::now())));
                         this_up
