@@ -1,6 +1,6 @@
 [package]
 name = "ninari-app"
-version = "0.1.10"
+version = "0.1.11"
 description = "ninari: a desktop app for watching anime, drawn with GPUI"
 authors = ["onokashino"]
 license = "GPL-3.0-only"
